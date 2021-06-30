@@ -6,6 +6,7 @@
 
 SUBDIRS= \
 	net \
+	netam64 \
 	netpy \
 	timer \
 	util
