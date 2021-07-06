@@ -7,30 +7,47 @@
 # Author:	T. Trinh, JPL, June 2021
 #
 
+# PKG_SYSROOT_DIR is defined in the linux-devkit/environment-setup script.
+SYSROOT_DIR=/
+TOOLCHAIN_PREFIX=
+TARGET_SYS=
+SYSROOT_DIR=/opt/ti/processor_sdk_linux_am64x_07_03_01_006/linux-devkit/sysroots/aarch64-linux
+TOOLCHAIN_PREFIX=aarch64-none-linux-gnu-
+TARGET_SYS=_am64x
+
 # Linux version
 #
-CC = aarch64-none-linux-gnu-gcc
-CPP = aarch64-none-linux-gnu-gcc
-LD = aarch64-none-linux-gnu-ld
-AR = aarch64-none-linux-gnu-ar
-# PKG_CONFIG_SYSROOT_DIR is defined in the linux-devkit/environment-setup script.
-CC_INCDIR = ${PKG_CONFIG_SYSROOT_DIR}/include/c++/9.2.1/
-RANLIB =
+CPP = $(TOOLCHAIN_PREFIX)gcc -E
+CC = $(TOOLCHAIN_PREFIX)gcc 
+CXX = $(TOOLCHAIN_PREFIX)g++ 
+LD = $(TOOLCHAIN_PREFIX)gcc
+AR = $(TOOLCHAIN_PREFIX)ar
+RANLIB = $(TOOLCHAIN_PREFIX)ranlib
+STRIP = $(TOOLCHAIN_PREFIX)strip
+OBJCOPY = $(TOOLCHAIN_PREFIX)objcopy
+OBJDUMP = $(TOOLCHAIN_PREFIX)objdump
+AS = $(TOOLCHAIN_PREFIX)as
+AR = $(TOOLCHAIN_PREFIX)ar
+NM = $(TOOLCHAIN_PREFIX)nm
+GDB = $(TOOLCHAIN_PREFIX)gdb
+
 
 DEFINES = -DLINUX
-CFLAGS = -Wall -g -O -fPIC
+#CPATH=$(SYSROOT_DIR)/usr/include:
+CC_INCDIR=$(SYSROOT_DIR)/usr/include
+CFLAGS = --sysroot=$(SYSROOT_DIR) -Wall -g -O -fPIC 
 #
 
 LLIBS = 
-LDLIBS = -L{PKG_CONFIG_SYSROOT_DIR}/lib -lnetam64 -lc
+LDLIBS = -L$(SYSROOT_DIR)/lib -lnet$(TARGET_SYS)
 
 #
 
-EXES = tstcliam64 
+EXES = tstcli$(TARGET_SYS) 
 
 SRCS = tstcli.c 
 
-LIB = netam64
+LIB = net$(TARGET_SYS)
 
 LIB_SRCS = \
 	   net_endpt.c \
