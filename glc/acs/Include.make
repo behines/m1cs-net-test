@@ -6,7 +6,8 @@
 
 SUBDIRS= \
 	net \
-	netam64 \
+	net_am335x \
+	net_am64x \
 	netpy \
 	timer \
 	util
