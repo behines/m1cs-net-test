@@ -8,7 +8,7 @@
 #
 
 # PKG_SYSROOT_DIR is defined in the linux-devkit/environment-setup script.                                       
-SYSROOT_DIR=/
+SYSROOT_DIR=
 TOOLCHAIN_PREFIX=
 TARGET_SYS=
 SYSROOT_DIR=/opt/ti/ti-processor-sdk-linux-am335x-evm-07.03.00.005/linux-devkit/sysroots/armv7at2hf-neon-linux-gnueabi/
@@ -79,11 +79,11 @@ LIB_SRCS = \
 LIB_OBJS = \
 	$(LIB_SRCS:.c=.o)
 
-EXES =	tstcli$(TARGET_SYS) 
+EXES =	tstsrv$(TARGET_SYS) 
 #EXES =  tstsrv
 #
 
-SRCS = tstcli.c 
+SRCS = tstsrv.c 
 #SRCS = tstsrv.c	
 
 OBJS =	$(LIB_OBJS)

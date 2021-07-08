@@ -1,0 +1,7 @@
+tstcli
+tstsrv
+tstcli_am335x
+tstsrv_am335x
+tstcli_am64x
+tstsrv_am64x
+depend.make

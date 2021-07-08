@@ -8,10 +8,12 @@
 #
 
 # PKG_SYSROOT_DIR is defined in the linux-devkit/environment-setup script.
-SYSROOT_DIR=/
+SYSROOT_DIR=
 TOOLCHAIN_PREFIX=
 TARGET_SYS=
-SYSROOT_DIR=/opt/ti/ti-processor-sdk-linux-am335x-evm-07.03.00.005/linux-devkit/sysroots/armv7at2hf-neon-linux-gnueabi/
+#SYSROOT_DIR=/opt/ti/ti-processor-sdk-linux-am335x-evm-07.03.00.005/linux-devkit/sysroots/armv7at2hf-neon-linux-gnueabi/
+SYSROOT_DIR=/opt/ti/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/
+#/linux-devkit/sysroots/armv7at2hf-neon-linux-gnueabi/
 TOOLCHAIN_PREFIX=arm-none-linux-gnueabihf-
 TARGET_SYS=_am335x
 
@@ -33,7 +35,6 @@ GDB = $(TOOLCHAIN_PREFIX)gdb
 
 
 DEFINES = -DLINUX
-#CPATH=$(SYSROOT_DIR)/usr/include:
 CC_INCDIR=$(SYSROOT_DIR)/usr/include
 CFLAGS = --sysroot=$(SYSROOT_DIR) -Wall -g -O -fPIC 
 #
@@ -43,9 +44,9 @@ LDLIBS = -L$(SYSROOT_DIR)/lib -lnet$(TARGET_SYS)
 
 #
 
-EXES = tstcli$(TARGET_SYS) 
+EXES = tstcli tstsrv
 
-SRCS = tstcli.c 
+SRCS = 
 
 LIB = net$(TARGET_SYS)
 

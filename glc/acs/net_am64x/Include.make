@@ -8,7 +8,7 @@
 #
 
 # PKG_SYSROOT_DIR is defined in the linux-devkit/environment-setup script.
-SYSROOT_DIR=/
+SYSROOT_DIR=
 TOOLCHAIN_PREFIX=
 TARGET_SYS=
 SYSROOT_DIR=/opt/ti/processor_sdk_linux_am64x_07_03_01_006/linux-devkit/sysroots/aarch64-linux
@@ -43,9 +43,9 @@ LDLIBS = -L$(SYSROOT_DIR)/lib -lnet$(TARGET_SYS)
 
 #
 
-EXES = tstcli$(TARGET_SYS) 
+EXES = tstcli tstsrv
 
-SRCS = tstcli.c 
+SRCS = 
 
 LIB = net$(TARGET_SYS)
 

@@ -8,7 +8,7 @@
 #
 
 # PKG_SYSROOT_DIR is defined in the linux-devkit/environment-setup script.
-SYSROOT_DIR=/
+SYSROOT_DIR=
 TOOLCHAIN_PREFIX=
 TARGET_SYS=
 #SYSROOT_DIR=/opt/ti/processor_sdk_linux_am64x_07_03_01_006/linux-devkit/sysroots/aarch64-linux
@@ -33,7 +33,6 @@ GDB = $(TOOLCHAIN_PREFIX)gdb
 
 
 DEFINES = -DLINUX
-#CPATH=$(SYSROOT_DIR)/usr/include:
 CC_INCDIR=$(SYSROOT_DIR)/usr/include
 CFLAGS = --sysroot=$(SYSROOT_DIR) -Wall -g -O -fPIC 
 #
@@ -43,11 +42,12 @@ LDLIBS = -L$(SYSROOT_DIR)/lib -lnet$(TARGET_SYS)
 
 #
 
-EXES = tstcli$(TARGET_SYS) 
+EXES = tstcli tstsrv
 
-SRCS = tstcli.c 
+SRCS = 
+SRCS = 
 
-LIB = net$(TARGET_SYS)
+LIB = net
 
 LIB_SRCS = \
 	   net_endpt.c \

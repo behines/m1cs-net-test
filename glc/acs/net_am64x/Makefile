@@ -8,7 +8,7 @@
 #
 
 # PKG_SYSROOT_DIR is defined in the linux-devkit/environment-setup script.                                       
-SYSROOT_DIR=/
+SYSROOT_DIR=
 TOOLCHAIN_PREFIX=
 TARGET_SYS=
 SYSROOT_DIR=/opt/ti/processor_sdk_linux_am64x_07_03_01_006/linux-devkit/sysroots/aarch64-linux
@@ -79,7 +79,7 @@ LIB_SRCS = \
 LIB_OBJS = \
 	$(LIB_SRCS:.c=.o)
 
-EXES =	tstcli$(TARGET_SYS) 
+EXES =	tstcli$(TARGET_SYS)  tstsrv$(TARGET_SYS)
 #EXES =  tstsrv
 #
 
@@ -106,7 +106,7 @@ $(LIB): $(LIB_OBJS)
 $(EXES): Makefile Include.make
 #$(EXES): $(LIB:%=lib%.a)
 $(EXES): $(LLIBS:-l%=lib%.a)
-$(EXES): $(filter %.c,$(EXES:%$(TARGET_SYS)=%.c))
+$(EXES): $(filter %.o,$(EXES:%$(TARGET_SYS)=%.o))
 $(EXES): $(filter %.o,$(SRCS:%.c=%.o))
 $(EXES): $(filter %.o,$(SRCS:%.C=%.o)) 
 	$(CC) -o $@  $(filter %.o,$(SRCS:.c=.o)) $(filter %.o,$(SRCS:.C=.o)) \

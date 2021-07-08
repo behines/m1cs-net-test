@@ -10,13 +10,13 @@
 # Usage:
 #             
 #   		From any source directory:
-#		make -f $HOME/m1cs/glc/Makefile
+#		make -f $HOME/m1cs/Makefile
 #
 #   		Create dependencies listing:
-#		make -f $HOME/m1cs/glc/Makefile depend
+#		make -f $HOME/m1cs/Makefile depend
 #
 #   		Remove object files:
-#		make -f $HOME/m1cs/glc/Makefile clean
+#		make -f $HOME/m1cs/Makefile clean
 #
 # Notes: 
 #	This makefile requires GNU make.
@@ -64,7 +64,7 @@ vpath %.a ../lib
 vpath %.a ../../lib
 
 ifeq ($(ROOTDIR),)
-    ROOTDIR=${HOME}/m1cs/glc
+    ROOTDIR=${HOME}/m1cs/
 endif
 
 # Global directories
@@ -93,7 +93,7 @@ else
     LINT=				# Currently don't have lint on Linux
     YACC= /usr/bin/yacc
     LEX= /usr/bin/lex
-    INSTALL= /usr/bin/install
+    INSTALL= /usr/bin/cp
     RANLIB=
     CPP=/usr/bin/cpp
     LD= /usr/bin/cc
@@ -126,6 +126,9 @@ FILE= $(MDEPEND)
 	@($(YACC.y) $<; \
 	mv y.tab.c $@ )
 
+# Explicitly define rule to check for .cpp file for EXES.o
+%.o: %.cpp
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 # Global Compilation Macros
 DEPEND_SRCS= [ "$(SUBDIRS)" ] && : || echo "$(SRCS) $(LIB_SRCS)"
@@ -133,9 +136,10 @@ DEPEND_SRCS= [ "$(SUBDIRS)" ] && : || echo "$(SRCS) $(LIB_SRCS)"
 .INIT:	$(FILE)
 
 all: $(LIB:%=$(LIBDIR)/lib%.a) $(SHLIB:%=$(LIBDIR)/%.so) $(EXES:%=$(BINDIR)/%)
-	@(D="$(SUBDIRS)";                                \
-	for i in $$D; do (cd $$i;                       \
-	    $(MAKE) $@ );                               \
+	@(D="$(SUBDIRS)";                                	\
+	for i in $$D; do (cd $$i; 				\
+	    if [ -f ./build.sh ]; then ./build.sh $$i $@;	\
+	    else $(MAKE) $@; fi);				\
 	done)
 
 # FIX: Minor bug that one executable depends on other executable resulting
@@ -144,8 +148,8 @@ all: $(LIB:%=$(LIBDIR)/lib%.a) $(SHLIB:%=$(LIBDIR)/%.so) $(EXES:%=$(BINDIR)/%)
 $(EXES:%=$(BINDIR)/%): $(EXES)
 	@(E="$(EXES)";					\
 	for i in $$E; do ( 				\
-	    $(INSTALL) -m 755 $$i $(BINDIR);		\
-	    (if [ -d ../bin ];then $(INSTALL) -m 755 $$i ../bin;fi) \
+	    $(INSTALL) -f -p $$i $(BINDIR)/$$i'$(TARGET_SYS)';	\
+	    (if [ -d ../bin ];then $(INSTALL) -f -p $$i ../bin/$$i$(TARGET_SYS);fi) \
 	);						\
 	done)					
 
@@ -153,31 +157,32 @@ $(EXES:%=$(BINDIR)/%): $(EXES)
 $(EXES): $(ROOTDIR)/Makefile Include.make
 $(EXES): $(LIB:%=lib%.a) 
 $(EXES): $(LLIBS:-l%=lib%.a) 
+$(EXES): $(EXES:%=%.o)
 $(EXES): $(filter %.o,$(SRCS:%.c=%.o)) 
-$(EXES): $(filter %.o,$(SRCS:%.C=%.o)) $(filter %.o,$(SRCS:%.s=%.o)) 
-	$(LD) -o $@ $(filter %.o,$(SRCS:.c=.o)) \
-	$(filter %.o,$(SRCS:.C=.o)) $(filter %.o,$(SRCS:.s=.o)) \
-	$(LDFLAGS) $(LLIBS) $(LDLIBS); 
-	@(if [ "$(XRT_AUTH)" ]; then $(XRT_AUTH) $@; fi;)
+$(EXES): $(filter %.o,$(SRCS:%.cpp=%.o)) $(filter %.o,$(SRCS:%.s=%.o)) 
+	$(LD) -o $@ $@.o $(filter %.o,$(SRCS:.c=.o)) 	\
+	$(filter %.o,$(SRCS:.cpp=.o)) $(filter %.o,$(SRCS:.s=.o)) \
+	$(LDFLAGS) $(LLIBS) $(LDLIBS); 		
+
 
 $(LIB:%=lib%.a): $(filter %.o,$(LIB_SRCS:%.c=%.o) ) 
-$(LIB:%=lib%.a): $(filter %.o,$(LIB_SRCS:%.C=%.o) ) 
+$(LIB:%=lib%.a): $(filter %.o,$(LIB_SRCS:%.cpp=%.o) ) 
 $(LIB:%=lib%.a): $(filter %.o,$(LIB_SRCS:%.s=%.o) ) 
 	$(AR) rcv $(LIB:%=lib%.a) $?
 	@(if [ "$(RANLIB)" ]; then $(RANLIB) $@; fi;)
 
 $(LIB:%=$(LIBDIR)/lib%.a) : $(LIB:%=lib%.a)
-	@(if [ -d ../lib ]; then $(INSTALL) -m 644 $? ../lib; fi )
-	@($(INSTALL) -m 644 $? $(LIBDIR))
+	@(if [ -d ../lib ]; then $(INSTALL) -f -p $? ../lib; fi )
+	@($(INSTALL) -f -p $? $(LIBDIR))
 
 $(SHLIB:%=%.so): $(filter %.o,$(LIB_SRCS:%.c=%.o) )
-$(SHLIB:%=%.so): $(filter %.o,$(LIB_SRCS:%.C=%.o) )
+$(SHLIB:%=%.so): $(filter %.o,$(LIB_SRCS:%.cpp=%.o) )
 $(SHLIB:%=%.so): $(filter %.o,$(LIB_SRCS:%.s=%.o) )
 	$(LD) -shared $(LDFLAGS) $(LLIBS) $(LDLIBS) -o $(SHLIB:%=%.so) $?
 
 $(SHLIB:%=$(LIBDIR)/%.so) : $(SHLIB:%=%.so)
-	@(if [ -d ../lib ]; then $(INSTALL) -m 755 $? ../lib; fi )
-	@($(INSTALL) -m 755 $? $(LIBDIR))
+	@(if [ -d ../lib ]; then $(INSTALL) -f -p $? ../lib; fi )
+	@($(INSTALL) -f -p $? $(LIBDIR))
 
 $(MDEPEND):
 	@touch $(MDEPEND)
@@ -185,7 +190,7 @@ $(MDEPEND):
 # FIX: depend does not handle case when EXES main routine is in a C++ file
 depend: FORCE
 depend: $(filter %.c,$(SRCS)) $(filter %.c,$(LIB_SRCS))
-depend: $(filter %.C,$(SRCS)) $(filter %.C,$(LIB_SRCS)) 
+depend: $(filter %.cpp,$(SRCS)) $(filter %.cpp,$(LIB_SRCS)) 
 	@(D="$(SUBDIRS)";                                                 \
 	for i in $$D; do                                                  \
 	    (cd $$i; $(MAKE) $@ )                                         \
