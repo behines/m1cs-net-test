@@ -93,7 +93,7 @@ else
     LINT=				# Currently don't have lint on Linux
     YACC= /usr/bin/yacc
     LEX= /usr/bin/lex
-    INSTALL= /usr/bin/cp
+    INSTALL= /bin/cp
     RANLIB=
     CPP=/usr/bin/cpp
     LD= /usr/bin/cc
