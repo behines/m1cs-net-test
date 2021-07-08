@@ -32,6 +32,8 @@
 #define ALARM_TYPE      (3<<12)
 #define DATA_TYPE       (5<<12)
 
+#define OS_PACK  __attribute__ ((packed, aligned(2))) // Force alignment for data structures 
+
 /// system wide data type ID's
 typedef enum data_id {
     XXX_STATUS_DATA = DATA_TYPE + 1,	//!< XXX status data
@@ -48,7 +50,7 @@ struct MsgHdr {
     uint16_t srcId;              //!< sender application id 
     uint16_t msgLen;             //!< message length including header(bytes) 
     uint16_t seqNo;              //!< sequence number 
-};
+} OS_PACK;
 
 #define MAX_CMD_LEN     (256)
 #define MAX_RSP_LEN     (256)
@@ -57,22 +59,22 @@ struct MsgHdr {
 struct CmdMsg {
     MsgHdr hdr;
     char   cmd[MAX_CMD_LEN];
-};
+} OS_PACK;
 
 struct RspMsg {
     MsgHdr hdr;
     char   rsp[MAX_RSP_LEN];
-};
+} OS_PACK;
 
 struct TimeTag {
     uint32_t tv_sec;
     uint32_t tv_nsec;
-};
+} OS_PACK;
 
 struct DataHdr {
     MsgHdr  hdr;
     TimeTag time;
-};
+} OS_PACK;
 
 /// Alarm severity levels
 enum AlarmLevel {
@@ -87,17 +89,17 @@ struct AlarmMsg {
     DataHdr    hdr;
     AlarmLevel level;
     char       message[MAX_ALARM_LEN];
-};
+} OS_PACK;
 
 /// 
 /// Message to allow sending raw block of data directly to the internal 
 /// devices test interface. 
 ///
 struct TestCmdMsg {
-    MsgHdr  hdr;
-    uint8_t dest;                //!< Destination device 1-3 USEB, 4-6 Actuator 
-    uint8_t *payload;
-};
+    MsgHdr   hdr;
+    uint16_t dest;                //!< Destination device 1-3 USEB, 4-6 Actuator 
+    uint8_t  *payload;
+} OS_PACK;
 
 #endif /* GLCMSG_H_ */
 

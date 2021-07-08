@@ -32,7 +32,7 @@ struct ActRtData {
     float32  offloadVel;
     float32  snubberVel;
     float32  targetOffset;
-};
+} OS_PACK;
 
 /// 16-Bit header the FPGA adds to the sensor data output.
 struct FpgaHeader {              //   bits  description
@@ -48,27 +48,27 @@ struct SensRtData {
     FpgaHeader fpgaHeader;       //!< Sensor data header from FPGA
     int32_t    height;           //!< Raw height value from FPGA
     int32_t    gap;              //!< Raw gap value from FPGA 
-};
+} OS_PACK;
 
 struct SegRtData {
     SensRtData sensor[USEB_PER_SEG];
     ActRtData  actuator[ACT_PER_SEG];
-};
+} OS_PACK;
 
 struct SegRtDataMsg {
     DataHdr   hdr;
     SegRtData data[SMPL_PER_MSG];
-};
+} OS_PACK;
 
 struct ActTarget {
     uint32_t frameCount;         //!< 
     float32  targetPos;          //!< 
-};
+} OS_PACK;
 
 struct ActTargetMsg {
     DataHdr   hdr;
     ActTarget target[ACT_PER_SEG]; //!<
-};
+} OS_PACK;
 
 
 //
@@ -81,31 +81,31 @@ struct WarpHarnStrain {
     int32_t readoutRate;         //!< Strain readout rate.  
     float32 temp[USEB_PER_SEG];  //!< Segment thermisters to read mirror temp.
     float32 strain[WH_PER_SEG];  //!< Calibrated strain gauge readings (N).
-};
+} OS_PACK;
 
 struct WarpHarnStrainMsg {
     DataHdr hdr;
     WarpHarnStrain data;
-};
+} OS_PACK;
 
 struct WarpHarnCalibCoef  {
     float32 strainOffset;        //!< Gauge offset for 0 force measurement.
     float32 deadbandWidth;       //!< Width of 0 force deadband(motor steps).
     float32 positiveGain;        //!< Force scale factor for positive force(N/step).
     float32 negativeGain;        //!< Force scale factor for negative force(N/step).
-};
+} OS_PACK;
 
 struct WarpHarnCalib {
     ElecId  segId;               //!< Elec-id chip mounted on glass segment(USEB0).
     ElecId  segLocId;            //!< Elec-id mounted in mirror well near LSEB.
     float32 temp[USEB_PER_SEG];  //!< Temp measured by segment thermisters.
     WarpHarnCalibCoef coef[WH_PER_SEG]; //!< Coefficients to convert
-};
+} OS_PACK;
 
-struct WarpingHarnessCalibMsg {
+struct WarpHarnCalibMsg {
     DataHdr hdr;
     WarpHarnCalib data;
-};
+} OS_PACK;
 
 // TODO: Need to check uint8_t definition on MSP432.  Might be 16 bit.
 struct SensCntlReg {              //  Bit  Description
@@ -126,7 +126,7 @@ struct SensWvfmParams {
     float32 ampl2;               //!< Amplitude of secondary sine waveform.
     float32 phase2;              //!< Phase of secondary  sine waveform.
     float32 freq2;               //!< Frequency of secondary sine waveform.
-};
+} OS_PACK;
 
 /// Sensor configuration information
 struct SensConfig {
@@ -135,26 +135,26 @@ struct SensConfig {
     uint8_t        reserved[3];  // 3 bytes padding
     SensCntlReg    cntlReg;      //!< Control register setting.
     SensWvfmParams waveform[WVFM_PER_SENS]; //!< Waveform generation parameters.
-};
+} OS_PACK;
   
 struct SensConfigMsg {
     DataHdr hdr;
     ElecId  segmentId;           //!< Elec-id chip mounted on glass segment(USEB0).
     ElecId  segmentLocId;        //!< Elec-id mounted in mirror well near LSEB.
     SensConfig config[SENS_PER_SEG];
-};
+} OS_PACK;
 
 /// 1 Hz Segment Status Data
 struct SegmentStatus {
     ElecId     segmentId;
 //  TBD
 
-};
+} OS_PACK;
 
 struct SegmentStatusMsg {
     DataHdr hdr;
     SegmentStatus status;
-};
+} OS_PACK;
 
 
 #endif /* GLCLSEBIF_H_ */
