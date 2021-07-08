@@ -27,6 +27,8 @@
 #ifndef NET_H
 #define NET_H
 
+#include "acs.h"
+
 #define NET_MAX_ENDPTS	  23		/* max number of remote endpoints */
 #define NET_MAX_FD	1024		/* max number of open socket desc */
 

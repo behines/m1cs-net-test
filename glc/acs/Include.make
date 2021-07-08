@@ -9,6 +9,7 @@ SUBDIRS= \
 	net_am335x \
 	net_am64x \
 	netpy \
+	CmdTool \
 	timer \
 	util
 

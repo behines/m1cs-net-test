@@ -31,6 +31,10 @@
 
 #include "acs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* generic application names */
 
 #define ANY_TASK	 0		/* wildcard task */
@@ -146,6 +150,10 @@ int net_close (int sockfd);
 	((errcode == NWOULDBLOCK) ? "Operation would block" : \
 	((errcode == ERROR) ? "System call error" : \
 	"<illegal value>")))))))))))
+#endif
+
+#ifdef __cplusplus
+} /* extern "C" */
 #endif
 
 #endif /* #ifndef NET_APPL_H */
