@@ -11,7 +11,7 @@
  * @author	Thang Trinh
  * @date	27-May-2022 -- Initial delivery.
  *
- * Copyright (c) 2015-2022, California Institute of Technology
+ * Copyright (c) 2015-2023, California Institute of Technology
  *
  *****************************************************************************/
 
@@ -24,25 +24,27 @@
 #include <unistd.h>
 #include <errno.h>
 #include <netdb.h>
+#include <time.h>
 
-#include "timer.h"
+#include "net_ts.h"
 #include "net_glc.h"
+#include "timer.h"
 #include "GlcMsg.h"
 
 #include "GlcLscsIf.h"
 
-#define MAXCLIENTS	20
+#define MAXCLIENTS	1		// Up to 492
 #define MAXMSGLEN	1024
 
-int listenfd = ERROR;
-int cli_fd[MAXCLIENTS];
+int  listenfd = ERROR;
+int  cli_fd[MAXCLIENTS];
+int  tmfd = ERROR;
+bool debug = false;
 
 
 void event_loop ();
 int  process_msg (int sockfd);
-
-
-int    tmfd = ERROR;
+int  process_timer (int tfd);
 
 
 int main (int argc, char **argv)
@@ -53,6 +55,9 @@ int main (int argc, char **argv)
     for (i = 1; i < argc; i++) {
 	if (!strcmp (argv[i], "-s"))
 	    (void) strncpy (server, argv[++i], sizeof server);
+
+	else if (!strcmp (argv[i], "-d"))
+	    debug = true;
     }
 
     for (i = 0; i < MAXCLIENTS; i++)
@@ -107,6 +112,7 @@ void event_loop ()
 
         nfds = select (FD_SETSIZE, &read_fds, (fd_set *) 0, (fd_set *) 0,
                        (struct timeval *) 0);
+
         if (nfds <= 0)  {
             if (errno == EINTR)  {
                 continue;
@@ -134,7 +140,9 @@ void event_loop ()
 
 		if (n < MAXCLIENTS) {
 		    cli_fd[n] = sockfd;
-		    setTimer (tmfd, NULL, &tm_50hz);
+		    if (debug) fprintf (stderr, "tm_50hz.(tv_sec, tv_usec) = (%ld, %ld)\n",
+							    tm_50hz.tv_sec, tm_50hz.tv_usec);
+		    if (tmfd != ERROR) setTimer (tmfd, &tm_50hz, &tm_50hz);
 		}
 		else {
 		    (void)fprintf (stderr, "glc_lscs_srv: Max client connections exceeded.\n");
@@ -144,6 +152,13 @@ void event_loop ()
                 if (--nfds <= 0)
                     continue;
             }
+//fprintf (stderr, "FD_ISSET(tmfd...) = %d\n", FD_ISSET (tmfd, &read_fds));	    
+	    if (tmfd != ERROR && FD_ISSET (tmfd, &read_fds)) {
+	    	(void) process_timer (tmfd);
+
+                if (--nfds <= 0)
+                    continue;
+	    }
 
 	    for (i = 0; i < MAXCLIENTS; i++)
 		if (cli_fd[i] != ERROR && FD_ISSET (cli_fd[i], &read_fds)) {
@@ -206,5 +221,34 @@ int send_rsp (int sockfd, char *cmdstr)
         (void)fprintf (stderr, "glc_lscs_srv: net_send() error: %s, errno=%d\n",
                                 NET_ERRSTR(status), errno);
     return status;
+}
+
+
+int process_timer (int tfd)
+{
+    uint64_t	 exp;
+    ssize_t	 s;
+    int		 i, status;
+    SegRtDataMsg seg_msg;
+
+    s = read (tfd, &exp, sizeof(uint64_t));
+    if (s != sizeof(uint64_t))
+    	perror ("read");
+    else if (debug)
+    	(void)fprintf (stderr, "read: timer exp = %lu\n", exp);
+
+    for (i = 0; i < MAXCLIENTS; i++)
+    	if (cli_fd[i] != ERROR) {
+    	    NET_TIMESTAMP ("glc_lscs_srv: Sending SegRtDataMsg (%lu bytes)...\n",
+				   sizeof(seg_msg));
+	    if ((status = net_send (cli_fd[i], (char *) &seg_msg, sizeof seg_msg, BLOCKING)) <= 0) {
+	    	(void)fprintf (stderr, "glc_lscs_srv: net_send() error: %s, errno=%d\n",
+					NET_ERRSTR(status), errno);
+	    	net_close (cli_fd[i]);
+		cli_fd[i] = ERROR;
+	    }
+    	}
+
+    return 0;
 }
 
