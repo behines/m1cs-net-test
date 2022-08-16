@@ -12,6 +12,8 @@
 #include "net_glc.h"
 #include "GlcMsg.h"
 
+bool debug = false;
+
 
 int main (int argc, char **argv)
 {
@@ -32,6 +34,9 @@ int main (int argc, char **argv)
 
 	else if (!strcmp (argv[i], "-h"))
 	    (void) strcpy (hostname, argv[++i]);
+
+    	else if (!strcmp (argv[i], "-d"))
+	    debug = true;
     }
 
     /* connect to server */
@@ -106,12 +111,15 @@ int process_tlm (int sockfd)
     int  len;
     char buff[1024];
     bool more = true;
+    struct timeval tm, lat;
     static int pkt = 0;
 
     while (more) {
 	(void) memset (buff, 0, sizeof buff);
 
 	len = net_recv (sockfd, buff, sizeof buff, BLOCKING);
+
+	gettimeofday (&tm, NULL);
 
 	if (len < 0) {
 	    (void)fprintf (stderr, "tstcli: net_recv() error: %s, errno=%d\n",
@@ -122,8 +130,16 @@ int process_tlm (int sockfd)
 	    (void)printf ("tstcli: Ending connection...\n");
 	    more = false;
 	}
-	else
-	    NET_TIMESTAMP ("%3d tstcli: Received %d bytes.\n", (pkt++%50)+1, len);
+	else {
+	    if (debug) {
+	    	NET_TIMESTAMP ("%3d tstcli: Received %d bytes.\n", (pkt++%50)+1, len);
+	    }
+	    else {
+		timersub (&tm, &(((DataHdr *)buff)->time), &lat);
+		(void)fprintf (stderr, " %02ld.%06ld %3d\n",
+					lat.tv_sec, lat.tv_usec, (pkt++%50)+1);
+	    }
+    	}
     }
 
     return 0;

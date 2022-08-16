@@ -152,7 +152,7 @@ void event_loop ()
                 if (--nfds <= 0)
                     continue;
             }
-//fprintf (stderr, "FD_ISSET(tmfd...) = %d\n", FD_ISSET (tmfd, &read_fds));	    
+
 	    if (tmfd != ERROR && FD_ISSET (tmfd, &read_fds)) {
 	    	(void) process_timer (tmfd);
 
@@ -226,9 +226,10 @@ int send_rsp (int sockfd, char *cmdstr)
 
 int process_timer (int tfd)
 {
-    uint64_t	 exp;
-    ssize_t	 s;
-    int		 i, status;
+    uint64_t	   exp;
+    ssize_t	   s;
+    int		   i, status;
+    struct timeval tm;
     SegRtDataMsg seg_msg;
 
     s = read (tfd, &exp, sizeof(uint64_t));
@@ -239,9 +240,13 @@ int process_timer (int tfd)
 
     for (i = 0; i < MAXCLIENTS; i++)
     	if (cli_fd[i] != ERROR) {
-    	    NET_TIMESTAMP ("glc_lscs_srv: Sending SegRtDataMsg (%lu bytes)...\n",
-				   sizeof(seg_msg));
-	    if ((status = net_send (cli_fd[i], (char *) &seg_msg, sizeof seg_msg, BLOCKING)) <= 0) {
+    	    if (debug) NET_TIMESTAMP ("glc_lscs_srv: Sending SegRtDataMsg (%lu bytes)...\n",
+									sizeof(seg_msg));
+	    gettimeofday (&tm, NULL);
+	    seg_msg.hdr.time = tm;
+
+	    if ((status = net_send (cli_fd[i], (char *) &seg_msg, sizeof seg_msg,
+								  BLOCKING)) <= 0) {
 	    	(void)fprintf (stderr, "glc_lscs_srv: net_send() error: %s, errno=%d\n",
 					NET_ERRSTR(status), errno);
 	    	net_close (cli_fd[i]);

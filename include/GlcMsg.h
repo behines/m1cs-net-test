@@ -72,10 +72,16 @@ typedef struct RspMsg {
     char rsp[MAX_RSP_LEN];
 } OS_PACK RspMsg;
 
+#if 0
 typedef struct TimeTag {
     uint64_t tv_sec;
     uint64_t tv_nsec;
 } OS_PACK TimeTag;
+#endif
+
+#include <sys/time.h>
+
+typedef struct timeval TimeTag;
 
 typedef struct DataHdr {
     MsgHdr hdr;

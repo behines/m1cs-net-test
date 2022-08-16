@@ -17,7 +17,7 @@ CC_INCDIR = /usr/include
 RANLIB =
 
 DEFINES = -DLINUX
-CFLAGS = -Wall -g -O
+CFLAGS = -Wall -g -O 
 #
 
 LLIBS = 

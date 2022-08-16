@@ -17,7 +17,7 @@ CC_INCDIR = /usr/include
 RANLIB =
 
 DEFINES = -DLINUX
-CFLAGS = -Wall -g -O -fPIC
+CFLAGS = -Wall -g -O -Wno-format-overflow
 #
 
 LLIBS = 
