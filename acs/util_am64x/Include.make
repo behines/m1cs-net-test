@@ -1,10 +1,11 @@
 #
 # Project:	Thirty Meter Telescope (TMT)
-# System:	Primary Mirror Control System (M1CS)
-# Task:		Network Communication Services (net)
-# Module:	Network Communication Services Makefile
+# Project:	Primary Mirror Control System (M1CS)
+# System:       Network Benchmarking
+# Task:		Application Common Services Utilities (util_am64x)
+# Module:	Utilities Makefile
 #
-# Author:	T. Trinh, JPL, June 2021
+# Author:	G. Brack, JPL, Aug 2022
 #
 
 TARGET_SYS=_am64x
@@ -37,27 +38,26 @@ GDB = $(TOOLCHAIN_PREFIX)gdb
 DEFINES = -DLINUX
 
 # CFLAGS: standard C compilier flags
-CFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow
+CFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow -fPIC
 
 # CXXFLAGS: standard C++ compilier flags to set
-CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow 
+CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow -fPIC
 
 # LLIBS: local project libraries to linked to EXE.
-LLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS)
+LLIBS = -lutil$(TARGET_SYS) 
 
 # LDLIBS: system libraries/library paths to linked to EXE
-LDLIBS =  --sysroot=$(SYSROOT) 
+LDLIBS =  --sysroot=$(SYSROOT)
 
 # EXES: name of executable(s) to be created.
-EXES = glc_lscs_srv$(TARGET_SYS) tstcli3$(TARGET_SYS)
+EXES =  
 
 # SRCS: list of source files to be compiled/linked with EXE.o 
-SRCS = glc_lscs_srv.c tstcli3.c
-SRCS =
+SRCS = 
 
 # LIB: Name of library to be created.
-LIB = net$(TARGET_SYS)
+LIB = util$(TARGET_SYS)
 
 # LIB_SRCS: list of source files to be compiled and linked into LIB
-LIB_SRCS = net_endpt.c net_io.c net_tcp.c 
+LIB_SRCS = timer.c 
 
