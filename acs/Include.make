@@ -5,7 +5,8 @@
 
 
 SUBDIRS= \
+	util \
+	util_am64x \
 	net \
-	timer \
-	util
+	net_am64x 
 

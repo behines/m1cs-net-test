@@ -153,11 +153,11 @@ $(EXES:%=$(BINDIR)/%): $(EXES)
 $(EXES): $(ROOTDIR)/Makefile Include.make
 $(EXES): $(LIB:%=lib%.a) 
 $(EXES): $(LLIBS:-l%=lib%.a) 
-$(EXES): $(filter %.o,$(SRCS:%.c=%.o)) 
+$(EXES): $(filter %.o,$(SRCS:%.c=%.o)) $(EXES:%$(TARGET_SYS)=%.o)
 $(EXES): $(filter %.o,$(SRCS:%.C=%.o)) $(filter %.o,$(SRCS:%.s=%.o)) 
-	$(LD) -o $@ $(filter %.o,$(SRCS:.c=.o)) \
+	$(LD) $(@:%$(TARGET_SYS)=%.o) $(filter %.o,$(SRCS:.c=.o)) \
 	$(filter %.o,$(SRCS:.C=.o)) $(filter %.o,$(SRCS:.s=.o)) \
-	$(LDFLAGS) $(LLIBS) $(LDLIBS); 
+	$(LDFLAGS) $(LLIBS) $(LDLIBS) -o $@; 
 	@(if [ "$(XRT_AUTH)" ]; then $(XRT_AUTH) $@; fi;)
 
 $(LIB:%=lib%.a): $(filter %.o,$(LIB_SRCS:%.c=%.o) ) 

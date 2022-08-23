@@ -20,14 +20,14 @@ DEFINES = -DLINUX
 CFLAGS = -Wall -g -O -Wno-format-overflow
 #
 
-LLIBS = 
-LDLIBS = -lutil -lnet -lnsl
+LLIBS = -lutil -lnet
+LDLIBS = -lnsl
 
 #
 
-EXES = glc_lscs_srv 
+EXES = glc_lscs_srv tstcli3
 
-SRCS = glc_lscs_srv.c 
+SRCS = 
 
 LIB = net
 
