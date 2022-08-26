@@ -17,17 +17,17 @@ CC_INCDIR = /usr/include
 RANLIB =
 
 DEFINES = -DLINUX
-CFLAGS = -Wall -g -O -Wno-format-overflow
+CFLAGS = -Wall -g -O -Wno-format-overflow 
 #
 
-LLIBS = -lutil -lnet
-LDLIBS = -lnsl
+LLIBS =
+LDLIBS = -lutil -lnet -lnsl
 
 #
 
-EXES = glc_lscs_srv tstcli3
+EXES = tstcli3
 
-SRCS = 
+SRCS = tstcli3.c
 
 LIB = net
 
