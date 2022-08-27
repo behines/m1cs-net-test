@@ -8,5 +8,6 @@ SUBDIRS= \
 	util \
 	util_am64x \
 	net \
-	net_am64x 
+	net_am64x \
+	net-bench
 
