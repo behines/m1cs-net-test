@@ -12,7 +12,7 @@ ifeq ($(TARGET_SYS),_am335x)
     TOOLCHAIN_PREFIX=arm-linux-gnueabihf-
 else ifeq ($(TARGET_SYS),_am64x)
     TOOLCHAIN_PREFIX=aarch64-none-linux-gnu-
-    SYSROOT=/opt/ti/arago-2021.09-aarch64/sysroots/aarch64-linux/
+    SYSROOT=/opt/ti/arago-2021.09-aarch64/sysroots/aarch64-linux
     CC_INCDIR=$(SYSROOT)/usr/include/
 else
     TOOLCHAIN_PREFIX=
@@ -42,18 +42,19 @@ CFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow
 # CXXFLAGS: standard C++ compilier flags to set
 CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow 
 
-# LLIBS: local project libraries to linked to EXE.
-LLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS)
+# LLIBS: local project libraries to link to EXE
+LLIBS =
 
-# LDLIBS: system libraries/library paths to linked to EXE
-LDLIBS =  --sysroot=$(SYSROOT) 
+# LDLIBS: system libraries/library paths to link to EXE
+LDLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS) --sysroot=$(SYSROOT) 
 
 # EXES: name of executable(s) to be created.
-EXES = glc_lscs_srv$(TARGET_SYS) tstcli3$(TARGET_SYS)
+#EXES = lscs_tstsrv$(TARGET_SYS) rtc_tstcli$(TARGET_SYS)
+EXES = rtc_tstcli$(TARGET_SYS)
 
 # SRCS: list of source files to be compiled/linked with EXE.o 
-SRCS = glc_lscs_srv.c tstcli3.c
-SRCS =
+#SRCS = lscs_tstsrv.c rtc_tstcli.c
+SRCS =  rtc_tstcli.c
 
 # LIB: Name of library to be created.
 LIB = net$(TARGET_SYS)
