@@ -15,5 +15,18 @@
     /* Yocto SDK Configuration */
     "ARCH":"aarch64-none-linux-gnu",
     "SDKTARGETSYSROOT":     "${config:AM64.SDK_PATH}/sysroots/aarch64-linux",
-  }
+  },
+
+  "GLC": {
+    /* Site-specific Settings */
+    
+    /* Target Settings */
+    "TARGET_IP":"10.0.0.1",
+    "TARGET_BIN_DIR":"/home/brad/bin",	
+    "TARGET_USERNAME": "brad",
+
+    /* Project Settings */
+    "PROGRAM":"rtc_tstcli_am64x",
+    "LOCAL_BIN_DIR":"net-bench/",
+  },
 }

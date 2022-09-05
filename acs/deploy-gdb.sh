@@ -18,7 +18,6 @@ pwd
 scp ${LOCAL_BIN_DIR}/${PROGRAM} ${TARGET_USERNAME}@${TARGET_IP}:${TARGET_DIR}
 #scp ${LOCAL_BIN_DIR}/* root@${TARGET_IP}:${TARGET_DIR}
 
-# Must match endsPattern in tasks.json
 echo "Starting GDB Server on Target"
 
 # start gdbserver on target
