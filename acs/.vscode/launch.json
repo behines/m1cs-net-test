@@ -4,7 +4,7 @@
       "name": "segA1 debug",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${config:AM64.LOCAL_BIN_FOLDER}/${config:AM64.PROGRAM}",
+      "program": "${config:AM64.LOCAL_BIN_DIR}/${config:AM64.PROGRAM}",
       "args": [],
       "stopAtEntry": true,
       "cwd": "${workspaceFolder}",

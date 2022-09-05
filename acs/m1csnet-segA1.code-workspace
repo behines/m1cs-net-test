@@ -1,22 +1,26 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
+  "folders": [
+    {
+      "path": "."
+    }
   ],
   "settings": {
     "AM64": {
       /* Site-specific Settings */
-      "TARGET_IP":"10.0.1.1",
       "SDK_PATH":"/opt/ti/arago-2021.09-aarch64",
-  
-  	  /* Project Settings */
-	  "PROGRAM":"rtc_tstcli_am64x",
-      "LOCAL_BIN_FOLDER":"net_am64x/",
+
+      /* Target Settings */
+      "TARGET_IP":"10.0.1.1",
+      "TARGET_BIN_DIR":"/home/root/bin",  
+      "TARGET_USERNAME": "root",
     
-	  /* Yocto SDK Configuration */
-	  "ARCH":"aarch64-none-linux-gnu",
-	  "SDKTARGETSYSROOT":     "${config:AM64.SDK_PATH}/sysroots/aarch64-linux",
+      /* Project Settings */
+      "PROGRAM":"rtc_tstcli_am64x",
+      "LOCAL_BIN_DIR":"net_am64x/",
+      
+      /* Yocto SDK Configuration */
+      "ARCH":"aarch64-none-linux-gnu",
+      "SDKTARGETSYSROOT":     "${config:AM64.SDK_PATH}/sysroots/aarch64-linux",
     }
   }
 }

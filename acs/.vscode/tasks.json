@@ -24,9 +24,12 @@
           "type": "shell",
           "command": "sh",
           "args": [
-              "deploy-gdb-segA1.sh",
+              "deploy-gdb.sh",
               "${config:AM64.TARGET_IP}",
-              "${config:AM64.PROGRAM}"
+              "${config:AM64.PROGRAM}",
+              "${config:AM64.TARGET_BIN_DIR}",
+              "${config:AM64.TARGET_USERNAME}",
+              "${config:AM64.LOCAL_BIN_DIR}"
           ],
           "dependsOn": ["build"],
       },
@@ -34,7 +37,7 @@
       {
         "label": "build",
         "type": "shell",
-        "command": "make -f ../Makefile -j$(nproc) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
+        "command": "make -f ../Makefile ROOTDIR=/home/brad/sw/m1cs-net-test -j$(nproc) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
         "group": {
           "kind": "build",
           "isDefault": true
