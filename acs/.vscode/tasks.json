@@ -27,6 +27,7 @@
               "deploy-gdb.sh",
               "${config:AM64.TARGET_IP}",
               "${config:AM64.PROGRAM}",
+              "${config:AM64.PROGRAM_ARGS}",
               "${config:AM64.TARGET_BIN_DIR}",
               "${config:AM64.TARGET_USERNAME}",
               "${config:AM64.LOCAL_BIN_DIR}"
@@ -51,6 +52,7 @@
             "deploy-gdb.sh",
             "${config:GLC.TARGET_IP}",
             "${config:GLC.PROGRAM}",
+            "${config:GLC.PROGRAM_ARGS}",
             "${config:GLC.TARGET_BIN_DIR}",
             "${config:GLC.TARGET_USERNAME}",
             "${config:GLC.LOCAL_BIN_DIR}"
@@ -75,6 +77,7 @@
             "deploy-gdb.sh",
             "${config:SECTORSIM.TARGET_IP}",
             "${config:SECTORSIM.PROGRAM}",
+            "${config:SECTORSIM.PROGRAM_ARGS}",
             "${config:SECTORSIM.TARGET_BIN_DIR}",
             "${config:SECTORSIM.TARGET_USERNAME}",
             "${config:SECTORSIM.LOCAL_BIN_DIR}"
@@ -99,6 +102,7 @@
             "deploy-gdb.sh",
             "${config:NODESIM.TARGET_IP}",
             "${config:NODESIM.PROGRAM}",
+            "${config:NODESIM.PROGRAM_ARGS}",
             "${config:NODESIM.TARGET_BIN_DIR}",
             "${config:NODESIM.TARGET_USERNAME}",
             "${config:NODESIM.LOCAL_BIN_DIR}"
@@ -123,6 +127,7 @@
             "deploy-gdb.sh",
             "${config:SEGMENTSIM.TARGET_IP}",
             "${config:SEGMENTSIM.PROGRAM}",
+            "${config:SEGMENTSIM.PROGRAM_ARGS}",
             "${config:SEGMENTSIM.TARGET_BIN_DIR}",
             "${config:SEGMENTSIM.TARGET_USERNAME}",
             "${config:SEGMENTSIM.LOCAL_BIN_DIR}"

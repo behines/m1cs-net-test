@@ -16,6 +16,7 @@
   
       /* Project Settings */
       "PROGRAM":"lscs_tstsrv_am64x",
+      "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"net_am64x/",
   
       /* Yocto SDK Configuration */
@@ -33,6 +34,7 @@
   
       /* Project Settings */
       "PROGRAM":"tstcli3",
+      "PROGRAM_ARGS":"-h 10.0.1.1 -s app_srv19",
       "LOCAL_BIN_DIR":"net/",
     },
   
@@ -46,6 +48,7 @@
   
       /* Project Settings */
       "PROGRAM":"rtc_tstcli_am64x",
+      "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"net-bench/",
     },
   
@@ -59,6 +62,7 @@
   
       /* Project Settings */
       "PROGRAM":"rtc_tstcli_am64x",
+      "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"net-bench/",
     },
   
@@ -72,6 +76,7 @@
   
       /* Project Settings */
       "PROGRAM":"rtc_tstcli_am64x",
+      "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"net-bench/",
     },
   }
