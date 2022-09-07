@@ -58,15 +58,95 @@
         "dependsOn": ["build"],
       },
 
+      {
+        "label": "deploy-gdb-sectorsim",
+        "isBackground": true,
+        "problemMatcher":{
+            "base": "$gcc",
+            "background": {
+                "activeOnStart": true,
+                "beginsPattern":  "Deploying to target",
+                "endsPattern":  "Starting GDB Server on Target"
+            }
+        },
+        "type": "shell",
+        "command": "sh",
+        "args": [
+            "deploy-gdb.sh",
+            "${config:SECTORSIM.TARGET_IP}",
+            "${config:SECTORSIM.PROGRAM}",
+            "${config:SECTORSIM.TARGET_BIN_DIR}",
+            "${config:SECTORSIM.TARGET_USERNAME}",
+            "${config:SECTORSIM.LOCAL_BIN_DIR}"
+        ],
+        "dependsOn": ["build"],
+      },
+
+      {
+        "label": "deploy-gdb-nodesim",
+        "isBackground": true,
+        "problemMatcher":{
+            "base": "$gcc",
+            "background": {
+                "activeOnStart": true,
+                "beginsPattern":  "Deploying to target",
+                "endsPattern":  "Starting GDB Server on Target"
+            }
+        },
+        "type": "shell",
+        "command": "sh",
+        "args": [
+            "deploy-gdb.sh",
+            "${config:NODESIM.TARGET_IP}",
+            "${config:NODESIM.PROGRAM}",
+            "${config:NODESIM.TARGET_BIN_DIR}",
+            "${config:NODESIM.TARGET_USERNAME}",
+            "${config:NODESIM.LOCAL_BIN_DIR}"
+        ],
+        "dependsOn": ["build"],
+      },
+
+      {
+        "label": "deploy-gdb-segmentsim",
+        "isBackground": true,
+        "problemMatcher":{
+            "base": "$gcc",
+            "background": {
+                "activeOnStart": true,
+                "beginsPattern":  "Deploying to target",
+                "endsPattern":  "Starting GDB Server on Target"
+            }
+        },
+        "type": "shell",
+        "command": "sh",
+        "args": [
+            "deploy-gdb.sh",
+            "${config:SEGMENTSIM.TARGET_IP}",
+            "${config:SEGMENTSIM.PROGRAM}",
+            "${config:SEGMENTSIM.TARGET_BIN_DIR}",
+            "${config:SEGMENTSIM.TARGET_USERNAME}",
+            "${config:SEGMENTSIM.LOCAL_BIN_DIR}"
+        ],
+        "dependsOn": ["build"],
+      },
+
 
       /* Configure Build Task */
       {
         "label": "build",
+        "dependsOn": ["main_build", "tstsrv_build"],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+      },
+
+      {
+        "label": "main_build",
         "type": "shell",
         "command": "make -f ../Makefile ROOTDIR=/home/brad/sw/m1cs-net-test -j$(nproc) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
         "group": {
           "kind": "build",
-          "isDefault": true
         },
         "problemMatcher": ["$gcc"]
         /*
@@ -86,6 +166,33 @@
         }
         */
       },
+
+      {
+        "label": "tstsrv_build",
+        "type": "shell",
+        "command": "(cd net_am64x; make -f ../../Makefile ROOTDIR=/home/brad/sw/m1cs-net-test -j$(nproc) lscs_tstsrv_am64x) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
+        "group": {
+          "kind": "build",
+        },
+        "problemMatcher": ["$gcc"]
+        /*
+        "problemMatcher": {
+          "owner": "cpp",
+          "fileLocation":  [
+            "absolute"
+          ],
+          "pattern": {
+            "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          }
+        }
+        */
+      },
+
       {
         "label": "Stock Build",
         "type": "shell",

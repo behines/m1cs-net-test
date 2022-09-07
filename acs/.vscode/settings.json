@@ -9,7 +9,7 @@
     "TARGET_USERNAME": "root",
 
     /* Project Settings */
-    "PROGRAM":"rtc_tstcli_am64x",
+    "PROGRAM":"lscs_tstsrv_am64x",
     "LOCAL_BIN_DIR":"net_am64x/",
 
     /* Yocto SDK Configuration */
@@ -22,6 +22,45 @@
     
     /* Target Settings */
     "TARGET_IP":"10.0.0.1",
+    "TARGET_BIN_DIR":"/home/brad/bin",	
+    "TARGET_USERNAME": "brad",
+
+    /* Project Settings */
+    "PROGRAM":"tstcli3",
+    "LOCAL_BIN_DIR":"net/",
+  },
+
+  "SECTORSIM": {
+    /* Site-specific Settings */
+    
+    /* Target Settings */
+    "TARGET_IP":"10.4.0.1",
+    "TARGET_BIN_DIR":"/home/brad/bin",	
+    "TARGET_USERNAME": "brad",
+
+    /* Project Settings */
+    "PROGRAM":"rtc_tstcli_am64x",
+    "LOCAL_BIN_DIR":"net-bench/",
+  },
+
+  "NODESIM": {
+    /* Site-specific Settings */
+    
+    /* Target Settings */
+    "TARGET_IP":"10.4.0.2",
+    "TARGET_BIN_DIR":"/home/brad/bin",	
+    "TARGET_USERNAME": "brad",
+
+    /* Project Settings */
+    "PROGRAM":"rtc_tstcli_am64x",
+    "LOCAL_BIN_DIR":"net-bench/",
+  },
+
+  "SEGSIM": {
+    /* Site-specific Settings */
+    
+    /* Target Settings */
+    "TARGET_IP":"10.4.0.3",
     "TARGET_BIN_DIR":"/home/brad/bin",	
     "TARGET_USERNAME": "brad",
 
