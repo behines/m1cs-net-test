@@ -33,9 +33,9 @@
       "TARGET_USERNAME": "brad",
   
       /* Project Settings */
-      "PROGRAM":"tstcli3",
+      "PROGRAM":"rtc_tstcli",
       "PROGRAM_ARGS":"-h 10.0.1.1 -s app_srv19",
-      "LOCAL_BIN_DIR":"net/",
+      "LOCAL_BIN_DIR":"net-bench/",
     },
   
     "SECTORSIM": {
@@ -47,7 +47,7 @@
       "TARGET_USERNAME": "brad",
   
       /* Project Settings */
-      "PROGRAM":"rtc_tstcli_am64x",
+      "PROGRAM":"lscs_tstsrv",
       "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"net-bench/",
     },
@@ -61,7 +61,7 @@
       "TARGET_USERNAME": "brad",
   
       /* Project Settings */
-      "PROGRAM":"rtc_tstcli_am64x",
+      "PROGRAM":"lscs_tstsrv",
       "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"net-bench/",
     },
@@ -75,7 +75,7 @@
       "TARGET_USERNAME": "brad",
   
       /* Project Settings */
-      "PROGRAM":"rtc_tstcli_am64x",
+      "PROGRAM":"lscs_tstsrv",
       "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"net-bench/",
     },
