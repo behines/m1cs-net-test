@@ -1,8 +1,8 @@
 /**
  *****************************************************************************
  *
- * @file glc_lscs_srv.c
- *      GLC-LSCS Interface Server Benchmark.
+ * @file lscs_tstsrv.c
+ *      LSCS Test Server For Network Benchmarking.
  *
  * @par Project
  *      TMT Primary Mirror Control System (M1CS) \n
@@ -15,7 +15,7 @@
  *
  *****************************************************************************/
 
-/* glc_lscs_srv.c -- GLC-LSCS Interface Server */
+/* lscs_tstsrv.c -- LSCS Test Server */
 
 #include <string.h>
 #include <stdio.h>
@@ -33,7 +33,7 @@
 
 #include "GlcLscsIf.h"
 
-#define MAXCLIENTS	1		// Up to 492
+#define MAXCLIENTS	492		// Up to 492 client connections.
 #define MAXMSGLEN	1024
 
 int  listenfd = ERROR;
@@ -66,15 +66,15 @@ int main (int argc, char **argv)
     /* initialize server's network connection */
 
     if ((listenfd = net_init (server)) < 0 ) {
-	(void)fprintf (stderr, "glc_lscs_srv: net_init() error: %s, errno=%d\n",
+	(void)fprintf (stderr, "lscs_tstsrv: net_init() error: %s, errno=%d\n",
 				NET_ERRSTR(listenfd), errno);
 	exit (listenfd);
     }
     else
-        printf ("glc_lscs_srv: Listening on socket %d...\n", listenfd);
+        printf ("lscs_tstsrv: Listening on socket %d...\n", listenfd);
 
     if (timerCreate (&tmfd) == -1) {
-    	(void)fprintf (stderr, "glc_lscs_srv: Error creating timer.\n");
+    	(void)fprintf (stderr, "lscs_tstsrv: Error creating timer.\n");
 	exit (tmfd);
     }
 
@@ -118,7 +118,7 @@ void event_loop ()
                 continue;
             }
             // error on select
-            (void)fprintf (stderr, "glc_lscs_srv: select() error: %s.", strerror (errno));
+            (void)fprintf (stderr, "lscs_tstsrv: select() error: %s.", strerror (errno));
             exit (-1);
         }
         else {
@@ -126,12 +126,12 @@ void event_loop ()
 
 		/* accept new client connection */
 		if ((sockfd = net_accept (listenfd, BLOCKING)) < 0) {
-		    (void)fprintf (stderr, "glc_lscs_srv: net_accept() error: %s, errno=%d\n",
+		    (void)fprintf (stderr, "lscs_tstsrv: net_accept() error: %s, errno=%d\n",
 					    NET_ERRSTR(sockfd), errno);
 		    net_close (listenfd);
 		    exit (sockfd);
 		}
-		(void)printf ("glc_lscs_srv: Connection accepted...\n");
+		(void)printf ("lscs_tstsrv: Connection accepted.\n");
 
 		int n = 0;
 
@@ -145,7 +145,7 @@ void event_loop ()
 		    if (tmfd != ERROR) setTimer (tmfd, &tm_50hz, &tm_50hz);
 		}
 		else {
-		    (void)fprintf (stderr, "glc_lscs_srv: Max client connections exceeded.\n");
+		    (void)fprintf (stderr, "lscs_tstsrv: Max client connections exceeded.\n");
 		    net_close (sockfd);
 		}
 
@@ -183,12 +183,12 @@ int process_msg (int indx)
     (void) memset (msg, 0, sizeof msg);
 
     if ((len = net_recv (cli_fd[indx], msg, MAXMSGLEN, BLOCKING)) < 0) {
-	(void)fprintf (stderr, "glc_lscs_srv: net_recv() error: %s, errno=%d\n",
+	(void)fprintf (stderr, "lscs_tstsrv: net_recv() error: %s, errno=%d\n",
 				NET_ERRSTR(len), errno);
 	return len;
     }
     else if (len == NEOF) {
-	(void)printf ("glc_lscs_srv: Closing broken connection...\n");
+	(void)printf ("lscs_tstsrv: Closing broken connection...\n");
 	net_close (cli_fd[indx]);
 	cli_fd[indx] = ERROR;
 	return len;
@@ -201,7 +201,7 @@ int process_msg (int indx)
 	send_rsp (cli_fd[indx], ((CmdMsg *) msg)->cmd);
     }
     else
-    	(void)fprintf (stderr, "glc_lscs_srv: Invalid message received.\n");
+    	(void)fprintf (stderr, "lscs_tstsrv: Invalid message received.\n");
 
     return len;
 }
@@ -218,7 +218,7 @@ int send_rsp (int sockfd, char *cmdstr)
     (void) sprintf (rsp_msg.rsp, "%s: Completed.", cmd);
 
     if ((status = net_send (sockfd, (char *) &rsp_msg, sizeof rsp_msg, BLOCKING)) <= 0)
-        (void)fprintf (stderr, "glc_lscs_srv: net_send() error: %s, errno=%d\n",
+        (void)fprintf (stderr, "lscs_tstsrv: net_send() error: %s, errno=%d\n",
                                 NET_ERRSTR(status), errno);
     return status;
 }
@@ -240,14 +240,14 @@ int process_timer (int tfd)
 
     for (i = 0; i < MAXCLIENTS; i++)
     	if (cli_fd[i] != ERROR) {
-    	    if (debug) NET_TIMESTAMP ("glc_lscs_srv: Sending SegRtDataMsg (%lu bytes)...\n",
+    	    if (debug) NET_TIMESTAMP ("lscs_tstsrv: Sending SegRtDataMsg (%lu bytes)...\n",
 									sizeof(seg_msg));
 	    gettimeofday (&tm, NULL);
 	    seg_msg.hdr.time = tm;
 
 	    if ((status = net_send (cli_fd[i], (char *) &seg_msg, sizeof seg_msg,
 								  BLOCKING)) <= 0) {
-	    	(void)fprintf (stderr, "glc_lscs_srv: net_send() error: %s, errno=%d\n",
+	    	(void)fprintf (stderr, "lscs_tstsrv: net_send() error: %s, errno=%d\n",
 					NET_ERRSTR(status), errno);
 	    	net_close (cli_fd[i]);
 		cli_fd[i] = ERROR;
