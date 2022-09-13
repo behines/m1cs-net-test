@@ -25,9 +25,9 @@ LDLIBS = -lutil -lnet -lnsl
 
 #
 
-EXES = tstcli3
+EXES = tstcli3 tstsrv
 
-SRCS = tstcli3.c
+SRCS = tstcli3.c tstsrv.c
 
 LIB = net
 
