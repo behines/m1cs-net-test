@@ -35,7 +35,7 @@
       /* Project Settings */
       "PROGRAM":"rtc_tstcli",
       "PROGRAM_ARGS":"-h 10.0.1.1 -s app_srv19",
-      "LOCAL_BIN_DIR":"net-bench/",
+      "LOCAL_BIN_DIR":"../bin/",
     },
   
     "SECTORSIM": {

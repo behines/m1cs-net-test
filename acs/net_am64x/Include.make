@@ -54,11 +54,10 @@ LDLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS) --sysroot=$(SYSROOT)
 
 # EXES: name of executable(s) to be created.
 #EXES = lscs_tstsrv$(TARGET_SYS) rtc_tstcli$(TARGET_SYS)
-EXES = rtc_tstcli$(TARGET_SYS)
 
 # SRCS: list of source files to be compiled/linked with EXE.o 
 #SRCS = lscs_tstsrv.c rtc_tstcli.c
-SRCS =  rtc_tstcli.c
+SRCSCPP =  rtc_tstcli.cpp
 
 # LIB: Name of library to be created.
 LIB = net$(TARGET_SYS)

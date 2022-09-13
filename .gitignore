@@ -45,6 +45,8 @@ Thumbs.db
 .config
 .launches
 *.dump
+.build
+.build/*
 Debug
 Debug_EABI
 Release
