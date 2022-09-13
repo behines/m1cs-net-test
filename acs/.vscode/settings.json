@@ -28,7 +28,7 @@
 
     /* Project Settings */
     "PROGRAM":"rtc_tstcli",
-    "PROGRAM_ARGS":"-h 10.0.1.1 -s app_srv19",
+    "PROGRAM_ARGS":"-s app_srv19 -h 10.0.1.1",
     "LOCAL_BIN_DIR":"../bin/",
   },
 
@@ -42,7 +42,7 @@
 
     /* Project Settings */
     "PROGRAM":"rtc_tstcli",
-    "PROGRAM_ARGS":"-h 10.4.0.3 -s app_srv19",
+    "PROGRAM_ARGS":"-s app_srv19 -h 10.4.0.3",
     "LOCAL_BIN_DIR":"../bin/",
   },
 

@@ -22,11 +22,11 @@ else
     TOOLCHAIN_PREFIX=
 endif
 
-# override default compilier tools to cross compile
+# override default compiler tools to cross compile
 CPP = $(TOOLCHAIN_PREFIX)gcc -E
 CC = $(TOOLCHAIN_PREFIX)gcc
 CXX = $(TOOLCHAIN_PREFIX)g++
-LD = $(TOOLCHAIN_PREFIX)gcc
+LD = $(TOOLCHAIN_PREFIX)g++
 AR = $(TOOLCHAIN_PREFIX)ar
 RANLIB = $(TOOLCHAIN_PREFIX)ranlib
 STRIP = $(TOOLCHAIN_PREFIX)strip
@@ -58,7 +58,7 @@ EXES = lscs_tstsrv$(TARGET_SYS) rtc_tstcli$(TARGET_SYS)
 
 # SRCS: list of source files to be compiled/linked with EXE.o
 #SRCS = lscs_tstsrv.c rtc_tstcli.c
-SRCS =  lscs_tstsrv$(TARGET_SYS).c rtc_tstcli$(TARGET_SYS).cpp
+SRCS =  lscs_tstsrv$(TARGET_SYS).c rtc_tstcli$(TARGET_SYS).cpp HostConnection$(TARGET_SYS).cpp
 
 # LIB: Name of library to be created.
 LIB = net$(TARGET_SYS)

@@ -11,14 +11,14 @@
 #
 CC = gcc
 CPP = cpp
-LD = gcc
+LD = g++
 AR = ar
 CC_INCDIR = /usr/include
 RANLIB =
 
 DEFINES = -DLINUX
 CFLAGS = -Wall -g -O -Wno-format-overflow
-CXXFLAGS = -Wall -Werror -g -O -std=c++17
+CXXFLAGS = -Wall -g -O -std=c++17
 #
 
 LLIBS =
@@ -28,5 +28,5 @@ LDLIBS = -lutil -lnet -lnsl
 
 EXES = rtc_tstcli
 
-SRCS = rtc_tstcli.cpp
+SRCS = rtc_tstcli.cpp HostConnection.cpp
 
