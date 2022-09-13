@@ -8,6 +8,7 @@
 #include <netdb.h>
 
 #include "net_appl.h"
+#include "net_glc.h"
 
 int process_msg(int sockfd);
 
@@ -20,7 +21,7 @@ int main (int argc, char *argv[])
 {
     int listenfd;
     int msgfd;
-    char server[16];
+    char server[16]= LSCS_50HZ_DATA_SRV;
     int  i;				/* loop index */
 
     for (i = 1; i < argc; i++) {

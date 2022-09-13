@@ -25,10 +25,10 @@
   },
 
   {
-    "name": "GLC debug",
+    "name": "GLC->SegA1 debug",
     "type": "cppdbg",
     "request": "launch",
-    "program": "${config:GLC.LOCAL_BIN_DIR}/${config:GLC.PROGRAM}",
+    "program": "${config:GLC_SegA1.LOCAL_BIN_DIR}/${config:GLC_SegA1.PROGRAM}",
     "args": [],
     "stopAtEntry": true,
     "cwd": "${workspaceFolder}",
@@ -37,14 +37,37 @@
     "externalConsole": false,
     "MIMode": "gdb",
     "targetArchitecture": "x86_64",
-    "preLaunchTask": "deploy-gdb-glc",
+    "preLaunchTask": "deploy-gdb-glc_sega1",
     "setupCommands": [{
         "description": "Enable pretty-printing for gdb",
         "text": "-enable-pretty-printing",
         "ignoreFailures": true
     }],
     "miDebuggerPath": "/usr/bin/gdb-multiarch",
-    "miDebuggerServerAddress": "${config:GLC.TARGET_IP}:3000",
+    "miDebuggerServerAddress": "${config:GLC_SegA1.TARGET_IP}:3000",
+  },
+
+  {
+    "name": "GLC->SegSim debug",
+    "type": "cppdbg",
+    "request": "launch",
+    "program": "${config:GLC_SegSim.LOCAL_BIN_DIR}/${config:GLC_SegSim.PROGRAM}",
+    "args": [],
+    "stopAtEntry": true,
+    "cwd": "${workspaceFolder}",
+    "environment": [],
+    /* "console": "integratedTerminal", */
+    "externalConsole": false,
+    "MIMode": "gdb",
+    "targetArchitecture": "x86_64",
+    "preLaunchTask": "deploy-gdb-glc_segsim",
+    "setupCommands": [{
+        "description": "Enable pretty-printing for gdb",
+        "text": "-enable-pretty-printing",
+        "ignoreFailures": true
+    }],
+    "miDebuggerPath": "/usr/bin/gdb-multiarch",
+    "miDebuggerServerAddress": "${config:GLC_SegSim.TARGET_IP}:3000",
   },
 
   {
@@ -97,7 +120,7 @@
     "name": "SegSim debug",
     "type": "cppdbg",
     "request": "launch",
-    "program": "${config:SEGSIM.LOCAL_BIN_DIR}/${config:SEGSIM.PROGRAM}",
+    "program": "${config:SEGMENTSIM.LOCAL_BIN_DIR}/${config:SEGMENTSIM.PROGRAM}",
     "args": [],
     "stopAtEntry": true,
     "cwd": "${workspaceFolder}",
@@ -106,14 +129,14 @@
     "externalConsole": false,
     "MIMode": "gdb",
     "targetArchitecture": "x86_64",
-    "preLaunchTask": "deploy-gdb-segsim",
+    "preLaunchTask": "deploy-gdb-segmentsim",
     "setupCommands": [{
         "description": "Enable pretty-printing for gdb",
         "text": "-enable-pretty-printing",
         "ignoreFailures": true
     }],
     "miDebuggerPath": "/usr/bin/gdb-multiarch",
-    "miDebuggerServerAddress": "${config:SEGSIM.TARGET_IP}:3000",
+    "miDebuggerServerAddress": "${config:SEGMENTSIM.TARGET_IP}:3000",
   }
 
 ]
