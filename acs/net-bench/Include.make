@@ -26,7 +26,7 @@ LDLIBS = -lutil -lnet -lnsl
 
 #
 
-EXES = rtc_tstcli
+EXES = rtc_tstcli lscs_tstsrv
 
-SRCS = rtc_tstcli.cpp HostConnection.cpp
+SRCS = rtc_tstcli.cpp HostConnection.cpp lscs_tstsrv.c
 
