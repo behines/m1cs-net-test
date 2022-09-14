@@ -26,16 +26,18 @@ extern "C" {
 *    sHostname - hostname or dot-separated IP address
 */
 
-tHostConnection::tHostConnection(const char *sServer, const char *sHostname)
+tHostConnection::tHostConnection(const char *sServer, const char *sHostname) :
+  _sServer(sServer), _sHostname(sHostname)
 {
   _bDebug = false;
   
   _fdConnection = net_connect(const_cast<char *>(sServer), const_cast<char *>(sHostname), ANY_TASK, BLOCKING);
   if (_fdConnection  < 0) {
-    std::cerr << "tHostConnection: net_connect() error: " << NET_ERRSTR(_fdConnection) << ": " << strerror(errno) << std::endl;
+    std::cerr << "tHostConnection: Could not connect to " << _sServer <<  " on " << _sHostname << std::endl;
+    std::cerr << "                 net_connect() error: " << NET_ERRSTR(_fdConnection) << ": " << strerror(errno) << std::endl;
   }
   else {
-    std::cout << "tstcli: Connected to " << sServer << " on " << sHostname << std::endl;
+    std::cout << "Connected to " << _sServer << " on " << _sHostname << std::endl;
   }
 }
 
@@ -70,6 +72,8 @@ tHostConnection::tHostConnection(tHostConnection &&other) noexcept
 {
   _fdConnection = std::move(other._fdConnection);
   _bDebug       = other._bDebug;
+  _sServer      = std::move(other._sServer);
+  _sHostname    = std::move(other._sHostname);
 
   // This assignment will disarm the net_close() in the destructor for other.
   other._fdConnection = 0;

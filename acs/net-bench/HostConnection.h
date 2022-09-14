@@ -25,8 +25,8 @@ public:
 protected:
   int  _fdConnection;
   bool _bDebug;
-  std::string _sHostname;
   std::string _sServer;
+  std::string _sHostname;
 };
 
 
