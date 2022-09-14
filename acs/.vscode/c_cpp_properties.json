@@ -1,0 +1,13 @@
+{
+  "configurations": [
+      {
+          "name": "Linux",
+          "includePath": [
+            "${workspaceFolder}/**",
+            "${workspaceFolder}/../**",
+            "${config:AM64.SDKTARGETSYSROOT}/usr/include/**"
+          ]
+      }
+  ],
+  "version": 4
+}

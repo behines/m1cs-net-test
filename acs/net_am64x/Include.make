@@ -11,8 +11,12 @@ TARGET_SYS=_am64x
 ifeq ($(TARGET_SYS),_am335x)
     TOOLCHAIN_PREFIX=arm-linux-gnueabihf-
 else ifeq ($(TARGET_SYS),_am64x)
-    TOOLCHAIN_PREFIX=aarch64-none-linux-gnu-
-    SYSROOT=/opt/ti/arago-2021.09-aarch64/sysroots/aarch64-linux
+    AM64X_SDK_PATH ?= /opt/ti/arago-2021.09-aarch64
+    AM64X_SDK_BASE_SYSROOT=$(AM64X_SDK_PATH)/sysroots
+    AM64X_SDK_TARGET_SYSROOT=$(AM64X_SDK_BASE_SYSROOT)/aarch64-linux
+    AM64X_SDK_NATIVE_SYSROOT=$(AM64X_SDK_BASE_SYSROOT)/x86_64-arago-linux
+    TOOLCHAIN_PREFIX=$(AM64X_SDK_NATIVE_SYSROOT)/usr/bin/aarch64-none-linux-gnu-
+    SYSROOT=$(AM64X_SDK_TARGET_SYSROOT)
     CC_INCDIR=$(SYSROOT)/usr/include/
 else
     TOOLCHAIN_PREFIX=
