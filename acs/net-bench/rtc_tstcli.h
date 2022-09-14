@@ -9,4 +9,6 @@
 
 int process_tlm(int sockfd);
 
+#define MAX_SERVER_NAME_LEN (16)
+
 #endif  // INC_rtc_tstcli_h

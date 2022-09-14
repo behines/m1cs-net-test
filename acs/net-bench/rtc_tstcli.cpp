@@ -20,8 +20,35 @@ extern "C" {
 
 #include "rtc_tstcli.h"
 #include "HostConnection.h"
+#include <list>
 
 bool debug = false;
+
+char sServer[MAX_SERVER_NAME_LEN] = LSCS_50HZ_DATA_SRV;
+
+std::list<tHostConnection> ConnectionList;
+
+
+/*****************************
+* TraverseArgList
+*
+*/
+
+void TraverseArgList(const char *sArgList[])
+{
+  const char *sArg = *sArgList++;
+
+  while (sArg != NULL) {
+    if      (!strcmp(sArg, "-s"))  (void) strcpy(sServer, *sArgList++);
+    else if (!strcmp(sArg, "-h"))  {
+      ConnectionList.push_back(tHostConnection(sServer, *sArgList++));
+    }
+    else if (!strcmp(sArg, "-d"))   debug = true;
+
+    sArg = *sArgList++;
+  }
+}
+
 
 
 /*****************************
@@ -29,23 +56,13 @@ bool debug = false;
 *
 */
 
-int main(int argc, char **argv)
+int main(int argc, const char *argv[])
 {
-  char sServer[16] = LSCS_50HZ_DATA_SRV;
-  int  i;
 
-  tHostConnection *pHostConnection = NULL;
+  TraverseArgList(argv);
 
-  for (i = 1; i < argc; i++) {
-    if      (!strcmp(argv[i], "-s"))  (void) strcpy(sServer, argv[++i]);
-    else if (!strcmp(argv[i], "-h"))  {
-      pHostConnection = new tHostConnection(sServer, argv[++i]);
-    }
-    else if (!strcmp(argv[i], "-d"))   debug = true;
-  }
- 
-  if (pHostConnection != NULL)  pHostConnection->ProcessTelemetry();
+  if (!ConnectionList.empty())  ConnectionList.front().ProcessTelemetry();
 
-  exit (0);
+  return 0;
 }
 

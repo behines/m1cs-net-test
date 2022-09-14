@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <string.h>
 #include <iostream>
+#include <utility>
 
 extern "C" {
   #include "net_ts.h"
@@ -25,17 +26,38 @@ extern "C" {
 *    sHostname - hostname or dot-separated IP address
 */
 
-tHostConnection::tHostConnection(char *sServer, char *sHostname)
+tHostConnection::tHostConnection(const char *sServer, const char *sHostname)
 {
   _bDebug = false;
   
-  _fdConnection = net_connect(sServer, sHostname, ANY_TASK, BLOCKING);
+  _fdConnection = net_connect(const_cast<char *>(sServer), const_cast<char *>(sHostname), ANY_TASK, BLOCKING);
   if (_fdConnection  < 0) {
     std::cerr << "tHostConnection: net_connect() error: " << NET_ERRSTR(_fdConnection) << ": " << strerror(errno) << std::endl;
   }
   else {
     std::cout << "tstcli: Connected to " << sServer << " on " << sHostname << std::endl;
   }
+}
+
+
+/***************************************************
+* tHostConnection move constructor
+*
+* This is used during assignment of the temporary object to the list.  If we don't have a
+* move constructor, then the destructor for the temporary object will close the file
+* descriptor.
+*
+* INPUTS:
+*    other - the contents of the object being moved
+*/
+
+tHostConnection::tHostConnection(tHostConnection &&other) noexcept
+{
+  _fdConnection = std::move(other._fdConnection);
+  _bDebug       = other._bDebug;
+
+  // This assignment will disarm the net_close() in the destructor for other.
+  other._fdConnection = 0;
 }
 
 

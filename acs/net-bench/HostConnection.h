@@ -9,12 +9,15 @@
 
 class tHostConnection {
 public:
-  tHostConnection(char *sServer, char *sHostname);
+  tHostConnection(const char *sServer, const char *sHostname);
+  tHostConnection(tHostConnection &&obj) noexcept;  // Move constructor - needed so that destruction of temporary does not close file.
+
   ~tHostConnection();
   int ProcessTelemetry();
 
 
   bool IsConnected()  { return (_fdConnection >= 0); }
+  operator bool()     { return  IsConnected();       }
 
 protected:
   int  _fdConnection;
