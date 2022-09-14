@@ -41,6 +41,21 @@ tHostConnection::tHostConnection(const char *sServer, const char *sHostname)
 
 
 /***************************************************
+* tHostConnection constructor
+*
+* INPUTS:
+*    sServer   - string descriptor of the service we are connecting to,
+*                e.g., "app_srv19"
+*    sHostname - hostname or dot-separated IP address
+*/
+
+tHostConnection::tHostConnection(const std::string &sServer, const std::string &sHostname) :
+  tHostConnection(sServer.c_str(), sHostname.c_str())
+{
+}
+
+
+/***************************************************
 * tHostConnection move constructor
 *
 * This is used during assignment of the temporary object to the list.  If we don't have a
@@ -114,5 +129,30 @@ int tHostConnection::ProcessTelemetry()
     }
   }  /* while(more) */
 
+  return 0;
+}
+
+
+
+
+
+/***************************************************
+* tHostConnectionList::AddConnection
+*
+* INPUTS:
+*    sServer   - string descriptor of the service we are connecting to,
+*                e.g., "app_srv19"
+*    sHostname - hostname or dot-separated IP address
+*/
+
+int tHostConnectionList::AddConnection(const char *sServer, const char *sHostname)
+{
+  _ConnectionList.push_back(tHostConnection(sServer, sHostname));
+  return 0;
+}
+
+int tHostConnectionList::AddConnection(const std::string &sServer, const std::string &sHostname)
+{
+  _ConnectionList.push_back(tHostConnection(sServer, sHostname));
   return 0;
 }

@@ -42,7 +42,8 @@
 
     /* Project Settings */
     "PROGRAM":"rtc_tstcli",
-    "PROGRAM_ARGS":"-s app_srv19 -h 10.4.0.3",
+    /* "PROGRAM_ARGS":"-s app_srv19 -h 10.4.0.3", */
+    "PROGRAM_ARGS":"-f HostListOneLine.txt",
     "LOCAL_BIN_DIR":"../bin/",
   },
 

@@ -21,12 +21,34 @@ extern "C" {
 #include "rtc_tstcli.h"
 #include "HostConnection.h"
 #include <list>
+#include <iostream>
+#include <fstream>
 
-bool debug = false;
+bool bDebug = false;
+bool b_sh_switches_present = false;
+bool b_f_switch_present    = false;
 
 char sServer[MAX_SERVER_NAME_LEN] = LSCS_50HZ_DATA_SRV;
 
-std::list<tHostConnection> ConnectionList;
+tHostConnectionList ConnectionList;
+
+
+/*****************************
+* PopulateFromFile
+*
+*/
+
+int PopulateFromFile(const char *sFilename)
+{
+  std::string sHostname, sServer;
+  std::ifstream HostListFile(sFilename);
+
+  while (HostListFile >> sHostname >> sServer) {
+    ConnectionList.AddConnection(sServer, sHostname);
+  }
+
+  return 0;
+}
 
 
 /*****************************
@@ -34,19 +56,35 @@ std::list<tHostConnection> ConnectionList;
 *
 */
 
-void TraverseArgList(const char *sArgList[])
+int TraverseArgList(const char *sArgList[])
 {
   const char *sArg = *sArgList++;
 
   while (sArg != NULL) {
-    if      (!strcmp(sArg, "-s"))  (void) strcpy(sServer, *sArgList++);
-    else if (!strcmp(sArg, "-h"))  {
-      ConnectionList.push_back(tHostConnection(sServer, *sArgList++));
+    if      (!strcmp(sArg, "-s"))  {
+      (void) strcpy(sServer, *sArgList++);
     }
-    else if (!strcmp(sArg, "-d"))   debug = true;
+    else if (!strcmp(sArg, "-h"))  {
+      ConnectionList.AddConnection(sServer, *sArgList++);
+      b_sh_switches_present = true;
+    }
+    else if (!strcmp(sArg, "-f"))  {
+      PopulateFromFile(*sArgList++);
+      b_f_switch_present = true;
+    }
+    else if (!strcmp(sArg, "-d")) {
+      bDebug = true;
+    }
 
     sArg = *sArgList++;
+
+    // Gary says it should be an error to specify both -f and -s/-h.
+    if (b_sh_switches_present && b_f_switch_present) {
+      return -1;
+    }
   }
+
+  return 0;
 }
 
 
@@ -58,10 +96,11 @@ void TraverseArgList(const char *sArgList[])
 
 int main(int argc, const char *argv[])
 {
+  if (TraverseArgList(argv) < 0) {
+    std::cerr << "Error: -f switch is mutually exclusive with -s/-h switches" << std::endl;
+  }
 
-  TraverseArgList(argv);
-
-  if (!ConnectionList.empty())  ConnectionList.front().ProcessTelemetry();
+  ConnectionList.ProcessTelemetry();
 
   return 0;
 }
