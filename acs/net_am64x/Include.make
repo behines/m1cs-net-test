@@ -44,13 +44,13 @@ DEFINES = -DLINUX
 CFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow
 
 # CXXFLAGS: standard C++ compilier flags to set
-CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow
+CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow -std=c++17
 
 # LLIBS: local project libraries to link to EXE
 LLIBS =
 
 # LDLIBS: system libraries/library paths to link to EXE
-LDLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS) --sysroot=$(SYSROOT)
+LDLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS) -lpthread --sysroot=$(SYSROOT)
 
 # EXES: name of executable(s) to be created.
 EXES = lscs_tstsrv$(TARGET_SYS) rtc_tstcli$(TARGET_SYS)
@@ -58,7 +58,7 @@ EXES = lscs_tstsrv$(TARGET_SYS) rtc_tstcli$(TARGET_SYS)
 
 # SRCS: list of source files to be compiled/linked with EXE.o
 #SRCS = lscs_tstsrv.c rtc_tstcli.c
-SRCS =  lscs_tstsrv$(TARGET_SYS).c rtc_tstcli$(TARGET_SYS).cpp HostConnection$(TARGET_SYS).cpp
+SRCS =  lscs_tstsrv$(TARGET_SYS).c rtc_tstcli$(TARGET_SYS).cpp HostConnection$(TARGET_SYS).cpp PThread$(TARGET_SYS).cpp
 
 # LIB: Name of library to be created.
 LIB = net$(TARGET_SYS)

@@ -94,5 +94,9 @@
       "PROGRAM_ARGS":" ",
       "LOCAL_BIN_DIR":"../bin/",
     },
+    "files.associations": {
+      "ostream": "cpp",
+      "iostream": "cpp"
+    },
   }
 }

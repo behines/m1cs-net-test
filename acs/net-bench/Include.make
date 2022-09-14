@@ -22,11 +22,11 @@ CXXFLAGS = -Wall -g -O -std=c++17
 #
 
 LLIBS =
-LDLIBS = -lutil -lnet -lnsl
+LDLIBS = -lutil -lnet -lnsl -lpthread
 
 #
 
 EXES = rtc_tstcli lscs_tstsrv
 
-SRCS = rtc_tstcli.cpp HostConnection.cpp lscs_tstsrv.c
+SRCS = rtc_tstcli.cpp HostConnection.cpp PThread.cpp lscs_tstsrv.c
 
