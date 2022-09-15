@@ -1,10 +1,10 @@
 #
-# Project:	Thirty Meter Telescope (TMT)
-# System:	Primary Mirror Control System (M1CS)
-# Task:		Network Communication Services (net)
-# Module:	Network Communication Services Makefile
+# Project:      Thirty Meter Telescope (TMT)
+# System:       Primary Mirror Control System (M1CS)
+# Task:         Network Communication Services (net)
+# Module:       Network Communication Services Makefile
 #
-# Author:	T. Trinh, JPL, June 2021
+# Author:       T. Trinh, JPL, June 2021
 #
 
 TARGET_SYS=_am64x
@@ -22,11 +22,11 @@ else
     TOOLCHAIN_PREFIX=
 endif
 
-# override default compilier tools to cross compile 
+# override default compiler tools to cross compile
 CPP = $(TOOLCHAIN_PREFIX)gcc -E
-CC = $(TOOLCHAIN_PREFIX)gcc 
-CXX = $(TOOLCHAIN_PREFIX)g++ 
-LD = $(TOOLCHAIN_PREFIX)gcc
+CC = $(TOOLCHAIN_PREFIX)gcc
+CXX = $(TOOLCHAIN_PREFIX)g++
+LD = $(TOOLCHAIN_PREFIX)g++
 AR = $(TOOLCHAIN_PREFIX)ar
 RANLIB = $(TOOLCHAIN_PREFIX)ranlib
 STRIP = $(TOOLCHAIN_PREFIX)strip
@@ -44,25 +44,24 @@ DEFINES = -DLINUX
 CFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow
 
 # CXXFLAGS: standard C++ compilier flags to set
-CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow 
+CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -Wno-format-overflow -std=c++17
 
 # LLIBS: local project libraries to link to EXE
 LLIBS =
 
 # LDLIBS: system libraries/library paths to link to EXE
-LDLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS) --sysroot=$(SYSROOT) 
+LDLIBS = -lnet$(TARGET_SYS) -lutil$(TARGET_SYS) -lpthread --sysroot=$(SYSROOT)
 
 # EXES: name of executable(s) to be created.
-#EXES = lscs_tstsrv$(TARGET_SYS) rtc_tstcli$(TARGET_SYS)
-EXES = rtc_tstcli$(TARGET_SYS)
+EXES = lscs_tstsrv$(TARGET_SYS) rtc_tstcli$(TARGET_SYS)
+#EXES = rtc_tstcli$(TARGET_SYS)
 
-# SRCS: list of source files to be compiled/linked with EXE.o 
+# SRCS: list of source files to be compiled/linked with EXE.o
 #SRCS = lscs_tstsrv.c rtc_tstcli.c
-SRCS =  rtc_tstcli.c
+SRCS =  lscs_tstsrv$(TARGET_SYS).c rtc_tstcli$(TARGET_SYS).cpp HostConnection$(TARGET_SYS).cpp PThread$(TARGET_SYS).cpp
 
 # LIB: Name of library to be created.
 LIB = net$(TARGET_SYS)
 
 # LIB_SRCS: list of source files to be compiled and linked into LIB
-LIB_SRCS = net_endpt.c net_io.c net_tcp.c 
-
+LIB_SRCS = net_endpt.c net_io.c net_tcp.c

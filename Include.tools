@@ -1,0 +1,116 @@
+#
+# Project:		Thirty Meter Telescope (TMT)
+# System:		Primary Mirror Control System (M1CS)
+# Module:		Include.tools
+# Authors:		G. Brack, JPL, Apr 1995
+#			
+#
+# Description:
+#
+
+BINDIR:=$(BINDIR)/$(TARGET)
+LIBDIR:=$(LIBDIR)/$(TARGET)
+ifeq ($(TARGET), am335x)
+    AS = arm-linux-gnueabihf-gcc-as-8
+    CPP = arm-linux-gnueabihf-gcc-8 -E
+    CC = arm-linux-gnueabihf-gcc-8 
+    CXX = arm-linux-gnueabihf-g++-8 
+    LD = arm-linux-gnueabihf-g++-8
+    AR = arm-linux-gnueabihf-gcc-ar-8
+    RANLIB = arm-linux-gnueabihf-gcc-ranlib-8
+    NM = arm-linux-gnueabihf-gcc-nm-8
+    SYSROOT=/mnt/bbb
+#    SYSROOT=/home/gbrack/bbb
+else ifeq ($(TARGET), am64x)
+    ########
+    #### Set this next line to wherever you've installed our custom SDK.  Or you
+    #### can specify AM64X_SDK_PATH= on the make command line.
+    #######
+
+    AM64X_SDK_PATH ?= /opt/ti/arago-2021.09-aarch64
+
+    # No need to edit any of the rest of this.
+    AM64X_SDK_BASE_SYSROOT=$(AM64X_SDK_PATH)/sysroots
+    AM64X_SDK_TARGET_SYSROOT=$(AM64X_SDK_BASE_SYSROOT)/aarch64-linux
+    AM64X_SDK_NATIVE_SYSROOT=$(AM64X_SDK_BASE_SYSROOT)/x86_64-arago-linux
+    AM64X_SDK_BINARIES=$(AM64X_SDK_NATIVE_SYSROOT)/usr/bin
+    #export PATH := $(AM64X_SDK_BINARIES)/:$(PATH)
+
+    # The following is what is actually used by our make rules
+    SYSROOT=$(AM64X_SDK_TARGET_SYSROOT)
+    AS     = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-as
+    CPP    = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-gcc -E
+    CC     = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-gcc 
+    CXX    = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-g++ 
+    LD     = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-g++
+    RANLIB = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-ranlib
+    AR     = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-ar
+    NM     = $(AM64X_SDK_BINARIES)/aarch64-none-linux-gnu-nm
+else ifeq ($(TARGET), msp432)
+    AS = armasm
+    CC = armcl
+    CXX = armcl
+    LD = armcl
+    AR = armar
+    STRIP = armstrip
+    OBJCOPY = armobjcopy
+    OBJDUMP = armobjdump
+    NM = armnm
+else ifeq ($(TARGET), c2000)
+    CC = cl2000
+    CXX = cl2000
+    LD = cl2000
+    AR = ar2000
+    STRIP = strip2000
+#    OBJCOPY = armobjcopy
+#    OBJDUMP = armobjdump
+    AS = asm2000
+    NM = nm2000
+else
+    # native host development tools
+    ifeq ($(OS),SunOS)
+        MAKE= /usr/local/bin/make -f $(ROOTDIR)/Makefile
+        LINT= /opt/SUNWspro/bin/lint
+        YACC= /usr/ccs/bin/yacc
+        LEX= /usr/ccs/bin/lex
+        INSTALL= /usr/local/bin/install
+        RANLIB=
+        CPP=/usr/ccs/lib/cpp
+        LD= /opt/SUNWspro/bin/cc
+        AR= /usr/ccs/bin/ar
+        AS= /usr/ccs/bin/as
+        CC= /opt/SUNWspro/bin/cc
+        CXX= /opt/SUNWspro/bin/CC
+        PYTHON=python3
+    else ifeq ($(OS), Darwin)    
+        MAKE= /usr/bin/make -f $(ROOTDIR)/Makefile
+        LINT=                               # Currently don't have lint on Linux
+        YACC= /usr/bin/bison
+        LEX= /usr/bin/flex
+        INSTALL= /bin/cp
+        RANLIB=
+        CPP=/usr/bin/cpp
+        LD= /usr/bin/cc
+        AR= /usr/bin/ar
+        AS= /usr/bin/as
+        CC= /usr/bin/cc
+        CXX= /usr/bin/CC
+        PYTHON=python3.9
+    else 
+        # Linux
+        MAKE = /usr/bin/make -f $(ROOTDIR)/Makefile
+        CPP = gcc -E
+        LINT =                               # Currently don't have lint on Linux
+        YACC = bison
+        LEX = flex
+        INSTALL = /bin/cp
+        RANLIB =
+        LD= g++
+        AR= ar
+        AS= as
+        CC= gcc
+        CXX= g++
+        PYTHON=python3.8
+    endif
+endif
+

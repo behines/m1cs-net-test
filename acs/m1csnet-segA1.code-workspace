@@ -24,7 +24,7 @@
       "SDKTARGETSYSROOT":     "${config:AM64.SDK_PATH}/sysroots/aarch64-linux",
     },
   
-    "GLC": {
+    "GLC_SegA1": {
       /* Site-specific Settings */
       
       /* Target Settings */
@@ -34,8 +34,23 @@
   
       /* Project Settings */
       "PROGRAM":"rtc_tstcli",
-      "PROGRAM_ARGS":"-h 10.0.1.1 -s app_srv19",
-      "LOCAL_BIN_DIR":"net-bench/",
+      "PROGRAM_ARGS":"-s app_srv19 -h 10.0.1.1 ",
+      "LOCAL_BIN_DIR":"../bin/",
+    },
+  
+    "GLC_SegSim": {
+      /* Site-specific Settings */
+      
+      /* Target Settings */
+      "TARGET_IP":"10.0.0.1",
+      "TARGET_BIN_DIR":"/home/brad/bin",	
+      "TARGET_USERNAME": "brad",
+  
+      /* Project Settings */
+      "PROGRAM":"rtc_tstcli",
+      /* "PROGRAM_ARGS":"-s app_srv19 -h 10.4.0.3", */
+      "PROGRAM_ARGS":"-f HostListOneLine.txt",
+      "LOCAL_BIN_DIR":"../bin/",
     },
   
     "SECTORSIM": {
@@ -66,7 +81,7 @@
       "LOCAL_BIN_DIR":"net-bench/",
     },
   
-    "SEGSIM": {
+    "SEGMENTSIM": {
       /* Site-specific Settings */
       
       /* Target Settings */
@@ -77,7 +92,11 @@
       /* Project Settings */
       "PROGRAM":"lscs_tstsrv",
       "PROGRAM_ARGS":" ",
-      "LOCAL_BIN_DIR":"net-bench/",
+      "LOCAL_BIN_DIR":"../bin/",
+    },
+    "files.associations": {
+      "ostream": "cpp",
+      "iostream": "cpp"
     },
   }
 }
