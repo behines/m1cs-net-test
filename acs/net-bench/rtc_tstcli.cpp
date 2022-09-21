@@ -62,10 +62,25 @@ int PopulateFromFile(const char *sFilename)
 
 int TraverseArgList(const char *sArgList[])
 {
+  const char *sProgramName = sArgList[0];
   const char *sArg = *sArgList++;
 
   while (sArg != NULL) {
-    if      (!strcmp(sArg, "-s"))  {
+    if (!strcmp(sArg, "-help")) {
+      cout << "Usage: " << sProgramName << " [-d] [-t thread_priority] [-h hostname] [-s server] [-f server_list_filename]" << endl;
+      cout << "  * If -f is provided, -s and -h must not be provided, and vice versa" << endl;
+      cout << "  * If the -t option is provided the program will launch one thread per server, at" << endl;
+      cout << "    realtime priority thread_priority, from 1-99, with 99 being highest.   " << endl;
+      cout << "  * If the -t option is not provided, a select loop will be used, in the context of" << endl;
+      cout << "    (same priority as) the main application." << endl;
+      cout << "  * If -t is provided, you must run the application with root privilege to get the" << endl;
+      cout << "    realtime priorities.  If not root, the threads will spawn at normal user priority." << endl;
+      cout << "  * The -t option must precede any -h, -s, and -f options" << endl;
+      cout << "  * -d is the debug flag.  Doesn't do anything at present." << endl << endl;
+
+      exit(0);
+    }
+    else if (!strcmp(sArg, "-s"))  {
       (void) strcpy(sServer, *sArgList++);
     }
     else if (!strcmp(sArg, "-h"))  {
@@ -87,6 +102,7 @@ int TraverseArgList(const char *sArgList[])
     else if (!strcmp(sArg, "-d")) {
       bDebug = true;
     }
+
 
     sArg = *sArgList++;
 

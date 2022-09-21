@@ -95,7 +95,9 @@
       "LOCAL_BIN_DIR":"../bin/",
     },
     "files.associations": {
-      "netdb.h": "c"
+      "netdb.h": "c",
+      "ostream": "cpp",
+      "iostream": "cpp"
     },
   }
 }
