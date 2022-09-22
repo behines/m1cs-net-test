@@ -24,7 +24,7 @@ using namespace std;
 
 
 /***************************************************
-* tHostConnection constructor
+* tSampleLogger constructor
 *
 * INPUTS:
 *    sServer   - string descriptor of the service we are connecting to,
@@ -32,19 +32,114 @@ using namespace std;
 *    sHostname - hostname or dot-separated IP address
 */
 
-tHostConnection::tHostConnection(const char *sServer, const char *sHostname, int iReceiveThreadPriority) :
-  tPThread(iReceiveThreadPriority, true),
-  _nReceived(0), _sServer(sServer), _sHostname(sHostname)
+tSampleLogger::tSampleLogger(const string &sServer, const string &sHostname) :
+  _sServer(sServer), _sHostname(sHostname),
+  _SampleQueue(),
+  _thread()  // Thread creation is deferred.  See tSampleLogger::StartLoggerThread()
 {
-  _bDebug = false;
-  
-  _fdConnection = net_connect(const_cast<char *>(sServer), const_cast<char *>(sHostname), ANY_TASK, BLOCKING);
-  if (_fdConnection  < 0) {
-    cerr << "tHostConnection: Could not connect to " << _sServer <<  " on " << _sHostname << endl;
-    cerr << "                 net_connect() error: " << NET_ERRSTR(_fdConnection) << ": " << strerror(errno) << endl;
-  }
-  else {
-    cout << "Connected to " << _sServer << " on " << _sHostname << endl;
+}
+
+
+
+
+/***************************************************
+* tSampleLogger move constructor
+*
+* This is used during assignment of the temporary object to the list.  If we don't have a
+* move constructor, then the destructor for the temporary object will close the file
+* descriptor.
+*
+* INPUTS:
+*    other - the contents of the object being moved
+*/
+
+tSampleLogger::tSampleLogger(tSampleLogger &&other) noexcept :
+  _sServer    (move(other._sServer)),
+  _sHostname  (move(other._sHostname)),
+  _SampleQueue(move(other._SampleQueue)),
+  // Mutex and condition variable cannot be moved.  
+  _thread     (move(other._thread))
+{
+}
+
+
+
+tSampleLogger::~tSampleLogger() 
+{
+  // _thread.join(); 
+}
+
+
+/***************************************************
+* tSampleLogger::StartLoggerThread
+*
+* Actually starts the logger thread running.  This has to wait until
+* after construction, because mutexes and condition variables cannot
+* be moved or copied.  Since temporaries are created and moved during
+* AddConnection, we have to postpone starting the thread until that
+* is complete.
+*/
+
+void tSampleLogger::StartLoggerThread()
+{
+   _thread = std::thread(&tSampleLogger::PrintSamples, this);
+}
+
+
+/***************************************************
+* tSampleLogger LogSample
+*
+* INPUTS:
+*    
+*/
+
+void tSampleLogger::LogSample(int nSamp, struct timeval &tmRcv, struct timeval &tmSent)
+{
+  std::lock_guard<std::mutex> cvLock(_SampleQueueMutex);
+  _SampleQueue.push(tLatencySample(nSamp, tmRcv, tmSent));
+  _SampleQueueCondition.notify_one();
+}
+
+
+/***************************************************
+* tSampleLogger PrintSamples
+*
+* INPUTS:
+*/
+
+void tSampleLogger::PrintSamples()
+{
+  tLatencySample Sample;
+  struct timeval tmDiff;
+
+  while (1) {
+    {
+      std::unique_lock cvLock(_SampleQueueMutex);
+      // Block until notified that there is something in the queue.  This will unlock the 
+      // mutex and then block.  
+      // There's actually no need to specify a predicate here, but we do anyway.  (We don't
+      // really care if we are spuriously awakened since we immediately test for our 
+      // predicate in the while loop below.)
+      _SampleQueueCondition.wait(cvLock, [this] { return !_SampleQueue.empty(); } );
+      // The mutex is now locked, but will be unlocked when the scoped_lock is destroyed
+    }
+
+    // Drain the queue
+    while (!_SampleQueue.empty()) {
+      {
+        std::scoped_lock cvLock(_SampleQueueMutex);
+        Sample = _SampleQueue.front();
+        _SampleQueue.pop();
+      }
+
+      timersub(&Sample._tmRcv, &Sample._tmSent, &tmDiff);
+      (void) printf("%s::%s: Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  N: %3d\n", 
+                     _sHostname.c_str(), _sServer.c_str(),
+                     Sample._tmSent.tv_sec, Sample._tmSent.tv_usec, 
+                     Sample._tmRcv .tv_sec, Sample._tmRcv .tv_usec,
+                     tmDiff.tv_sec, tmDiff.tv_usec, 
+                     ((Sample._nSamp-1)%50)+1);
+    }
   }
 }
 
@@ -58,9 +153,37 @@ tHostConnection::tHostConnection(const char *sServer, const char *sHostname, int
 *    sHostname - hostname or dot-separated IP address
 */
 
-tHostConnection::tHostConnection(const string &sServer, const string &sHostname, int iReceiveThreadPriority) :
-  tHostConnection(sServer.c_str(), sHostname.c_str(), iReceiveThreadPriority)
+tHostConnection::tHostConnection(const char *sServer, const char *sHostname, int iReceiveThreadPriority) :
+  tHostConnection(string(sServer), string(sHostname), iReceiveThreadPriority)
 {
+}
+
+
+/***************************************************
+* tHostConnection constructor
+*
+* INPUTS:
+*    sServer   - string descriptor of the service we are connecting to,
+*                e.g., "app_srv19"
+*    sHostname - hostname or dot-separated IP address
+*/
+
+tHostConnection::tHostConnection(const string &sServer, const string &sHostname, int iReceiveThreadPriority) :
+  tPThread(iReceiveThreadPriority, true),
+  _SampleLogger(sServer, sHostname),
+  _nReceived(0), _sServer(sServer), _sHostname(sHostname)
+{
+  _bDebug = false;
+  
+  _fdConnection = net_connect(const_cast<char *>(sServer.c_str()), const_cast<char *>(sHostname.c_str()), ANY_TASK, BLOCKING);
+  if (_fdConnection  < 0) {
+    cerr << "tHostConnection: Could not connect to " << _sServer <<  " on " << _sHostname << endl;
+    cerr << "                 net_connect() error: " << NET_ERRSTR(_fdConnection) << ": " << strerror(errno) << endl;
+  }
+  else {
+    cout << "Connected to " << _sServer << " on " << _sHostname << endl;
+  }
+
 }
 
 
@@ -76,12 +199,14 @@ tHostConnection::tHostConnection(const string &sServer, const string &sHostname,
 */
 
 tHostConnection::tHostConnection(tHostConnection &&other) noexcept :
-  tPThread(std::move(other))
+  tPThread(move(other)),
+  _SampleLogger(move(other._SampleLogger)),
+  _sServer     (move(other._sServer)),
+  _sHostname   (move(other._sHostname))
 {
-  _fdConnection = move(other._fdConnection);
+  _fdConnection = other._fdConnection;
   _bDebug       = other._bDebug;
-  _sServer      = move(other._sServer);
-  _sHostname    = move(other._sHostname);
+  _nReceived    = other._nReceived;
 
   // This assignment will disarm the net_close() in the destructor for other.
   other._fdConnection = 0;
@@ -117,7 +242,7 @@ void *tHostConnection::_Thread()
 
 
 /*****************************
-* ProcessIncomingMessage
+* tHostConnection::ProcessIncomingMessage
 *
 */
 
@@ -125,7 +250,7 @@ int tHostConnection::ProcessIncomingMessage()
 {
   int  len;
   char buf[MAX_MESSAGE_SIZE];
-  struct timeval tmRcv, tmSent, tmDiff;
+  struct timeval tmRcv, tmSent;
 
   //(void) memset(buf, 0, sizeof(buf));
 
@@ -147,13 +272,7 @@ int tHostConnection::ProcessIncomingMessage()
     }
     else {
       tmSent = ((DataHdr *) buf)->time;
-      timersub(&tmRcv, &tmSent, &tmDiff);
-      (void) printf("%s::%s: Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  N: %3d\n", 
-                     _sHostname.c_str(), _sServer.c_str(),
-                     tmSent.tv_sec, tmSent.tv_usec, 
-                     tmRcv .tv_sec, tmRcv .tv_usec,
-                     tmDiff.tv_sec, tmDiff.tv_usec, 
-                     (_nReceived++%50)+1);
+      _SampleLogger.LogSample(++_nReceived, tmRcv, tmSent);
     }
   }
  
@@ -173,16 +292,16 @@ int tHostConnection::ProcessIncomingMessage()
 int tHostConnectionList::AddConnection(const char *sServer, const char *sHostname, int iReceiveThreadPriority)
 {
   _ConnectionList.push_back(tHostConnection(sServer, sHostname, iReceiveThreadPriority));
+  _ConnectionList.back().StartSampleLoggerThread();
   return 0;
 }
 
 int tHostConnectionList::AddConnection(const string &sServer, const string &sHostname, int iReceiveThreadPriority)
 {
   _ConnectionList.push_back(tHostConnection(sServer, sHostname, iReceiveThreadPriority));
+  _ConnectionList.back().StartSampleLoggerThread();
   return 0;
 }
-
-
 
 
 /***************************************************

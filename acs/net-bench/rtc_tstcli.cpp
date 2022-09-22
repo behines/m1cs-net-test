@@ -26,7 +26,7 @@ extern "C" {
 
 using namespace std;
 
-bool bDebug = false;
+bool bDebug                = false;
 bool b_sh_switches_present = false;
 bool b_f_switch_present    = false;
 bool bUseThreads           = false;
@@ -67,7 +67,7 @@ int TraverseArgList(const char *sArgList[])
 
   while (sArg != NULL) {
     if (!strcmp(sArg, "-help")) {
-      cout << "Usage: " << sProgramName << " [-d] [-t thread_priority] [-h hostname] [-s server] [-f server_list_filename]" << endl;
+      cout << "Usage: " << sProgramName << " [-d] [-b num_samples] [-t thread_priority] [-h hostname] [-s server] [-f server_list_filename]" << endl;
       cout << "  * If -f is provided, -s and -h must not be provided, and vice versa" << endl;
       cout << "  * If the -t option is provided the program will launch one thread per server, at" << endl;
       cout << "    realtime priority thread_priority, from 1-99, with 99 being highest.   " << endl;
@@ -75,7 +75,7 @@ int TraverseArgList(const char *sArgList[])
       cout << "    (same priority as) the main application." << endl;
       cout << "  * If -t is provided, you must run the application with root privilege to get the" << endl;
       cout << "    realtime priorities.  If not root, the threads will spawn at normal user priority." << endl;
-      cout << "  * The -t option must precede any -h, -s, and -f options" << endl;
+      cout << "  * The -t and -b options must precede any -h, -s, and -f options" << endl;
       cout << "  * -d is the debug flag.  Doesn't do anything at present." << endl << endl;
 
       exit(0);

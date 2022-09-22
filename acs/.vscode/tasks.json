@@ -86,7 +86,7 @@
       },
 
       {
-        "label": "deploy-gdb-sectorsim",
+        "label": "deploy-gdb-glc_sectorsim",
         "isBackground": true,
         "problemMatcher":{
             "base": "$gcc",
@@ -100,12 +100,12 @@
         "command": "sh",
         "args": [
             "deploy-gdb.sh",
-            "${config:SECTORSIM.TARGET_IP}",
-            "${config:SECTORSIM.PROGRAM}",
-            "${config:SECTORSIM.PROGRAM_ARGS}",
-            "${config:SECTORSIM.TARGET_BIN_DIR}",
-            "${config:SECTORSIM.TARGET_USERNAME}",
-            "${config:SECTORSIM.LOCAL_BIN_DIR}"
+            "${config:GLC_SectorSim.TARGET_IP}",
+            "${config:GLC_SectorSim.PROGRAM}",
+            "${config:GLC_SectorSim.PROGRAM_ARGS}",
+            "${config:GLC_SectorSim.TARGET_BIN_DIR}",
+            "${config:GLC_SectorSim.TARGET_USERNAME}",
+            "${config:GLC_SectorSim.LOCAL_BIN_DIR}"
         ],
         "dependsOn": ["build"],
       },
@@ -156,6 +156,31 @@
             "${config:SEGMENTSIM.TARGET_BIN_DIR}",
             "${config:SEGMENTSIM.TARGET_USERNAME}",
             "${config:SEGMENTSIM.LOCAL_BIN_DIR}"
+        ],
+        "dependsOn": ["build"],
+      },
+
+      {
+        "label": "deploy-gdb-sectorsim",
+        "isBackground": true,
+        "problemMatcher":{
+            "base": "$gcc",
+            "background": {
+                "activeOnStart": true,
+                "beginsPattern":  "Deploying to target",
+                "endsPattern":  "Starting GDB Server on Target"
+            }
+        },
+        "type": "shell",
+        "command": "sh",
+        "args": [
+            "deploy-gdb.sh",
+            "${config:SECTORSIM.TARGET_IP}",
+            "${config:SECTORSIM.PROGRAM}",
+            "${config:SECTORSIM.PROGRAM_ARGS}",
+            "${config:SECTORSIM.TARGET_BIN_DIR}",
+            "${config:SECTORSIM.TARGET_USERNAME}",
+            "${config:SECTORSIM.LOCAL_BIN_DIR}"
         ],
         "dependsOn": ["build"],
       },
