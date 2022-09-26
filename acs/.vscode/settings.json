@@ -23,8 +23,8 @@
     
     /* Target Settings */
     "TARGET_IP":"10.0.0.1",
-    "TARGET_BIN_DIR":"/home/brad/bin",	
-    "TARGET_USERNAME": "brad",
+    "TARGET_BIN_DIR":"/home/gbrack/bin",	
+    "TARGET_USERNAME": "gbrack",
 
     /* Project Settings */
     "PROGRAM":"rtc_tstcli",
@@ -37,8 +37,8 @@
     
     /* Target Settings */
     "TARGET_IP":"10.0.0.1",
-    "TARGET_BIN_DIR":"/home/brad/bin",	
-    "TARGET_USERNAME": "brad",
+    "TARGET_BIN_DIR":"/home/gbrack/bin",	
+    "TARGET_USERNAME": "gbrack",
 
     /* Project Settings */
     "PROGRAM":"rtc_tstcli",
@@ -52,8 +52,8 @@
     
     /* Target Settings */
     "TARGET_IP":"10.4.0.1",
-    "TARGET_BIN_DIR":"/home/brad/bin",	
-    "TARGET_USERNAME": "brad",
+    "TARGET_BIN_DIR":"/home/gbrack/bin",	
+    "TARGET_USERNAME": "gbrack",
 
     /* Project Settings */
     "PROGRAM":"lscs_tstsrv",
@@ -66,8 +66,8 @@
     
     /* Target Settings */
     "TARGET_IP":"10.4.0.2",
-    "TARGET_BIN_DIR":"/home/brad/bin",	
-    "TARGET_USERNAME": "brad",
+    "TARGET_BIN_DIR":"/home/gbrack/bin",	
+    "TARGET_USERNAME": "gbrack",
 
     /* Project Settings */
     "PROGRAM":"lscs_tstsrv",
@@ -80,8 +80,8 @@
     
     /* Target Settings */
     "TARGET_IP":"10.4.0.3",
-    "TARGET_BIN_DIR":"/home/brad/bin",	
-    "TARGET_USERNAME": "brad",
+    "TARGET_BIN_DIR":"/home/gbrack/bin",	
+    "TARGET_USERNAME": "gbrack",
 
     /* Project Settings */
     "PROGRAM":"lscs_tstsrv",

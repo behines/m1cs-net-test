@@ -174,7 +174,7 @@
       {
         "label": "main_build",
         "type": "shell",
-        "command": "make -f ../Makefile ROOTDIR=/home/brad/sw/m1cs-net-test -j$(nproc) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
+        "command": "make -f ../Makefile -j$(nproc) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
         "group": {
           "kind": "build",
         },
@@ -200,7 +200,7 @@
       {
         "label": "tstsrv_build",
         "type": "shell",
-        "command": "(cd net_am64x; make -f ../../Makefile ROOTDIR=/home/brad/sw/m1cs-net-test -j$(nproc) lscs_tstsrv_am64x) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
+        "command": "(cd net_am64x; make -f ../../Makefile -j$(nproc) lscs_tstsrv_am64x) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
         "group": {
           "kind": "build",
         },
