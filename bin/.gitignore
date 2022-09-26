@@ -1,0 +1,10 @@
+# Ignore everything in this directory
+*
+# Except this file
+!.gitignore
+!codesonar.sh
+!key.pem
+!cert.pem
+!m1cs.conf
+!jpl.conf
+!pow10.conf

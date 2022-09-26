@@ -39,23 +39,21 @@
 ehthumbs.db
 Thumbs.db
 
-# Code Composer generated files
-##############################
+# M1CS Makefile auto generated files
+####################################
+.build
+doc/html
+doc/latex
+
+# Code Composer aout generated files
+####################################
 .xdchelp
 .config
 .launches
 *.dump
-.build
-.build/*
 Debug
 Debug_EABI
 Release
 Release_EABI
 CPU1_RAM
 CPU1_FLASH
-doc/html
-doc/latex
-acs/net-bench/rtc_tstcli
-acs/net_am64x/rtc_tstcli_am64x
-acs/net/tstcli3
-bin/*
