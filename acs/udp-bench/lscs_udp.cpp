@@ -40,6 +40,7 @@
 #define MAXMSGLEN	1024
 
 #define SEND_INTERVAL_IN_MILLISECONDS (20)
+#define MICROSECONDS_PER_SECOND (1000000)
 
 using namespace std;
 
@@ -48,12 +49,16 @@ bool b_fFlagIsPresent = false;
 bool b_pFlagIsPresent = false;
 bool b_nFlagIsPresent = false;
 bool b_hFlagIsPresent = false;
+bool b_cFlagIsPresent = false;
+
 string sFilename;
 tClientList ClientList;
 
 
 // Values when the info is not provided from a file
 string sHostIpAddressString = "10.0.0.1";
+string sClientIpAddressString = "10.0.1.1";
+
 int iNumClients  = 0;
 int iNextPortNum = M1CS_DEFAULT_FIRST_UDP_PORT;
 int iLastPortNum = (M1CS_DEFAULT_FIRST_UDP_PORT + M1CS_DEFAULT_NUM_UDP_PORTS - 1);
@@ -102,12 +107,12 @@ int PopulateFromFile(string sFilename)
 
 int PopulateFromValues()
 {
-  string sClientIpAddress;
+  string sClientIpAddress = sClientIpAddressString;
 
   for ( ; iNextPortNum <= iLastPortNum; iNextPortNum++) {
 
     // Create an IP address string
-    sClientIpAddress = sIpAddressBase[iCurBase] + to_string(iCurIpInBase);
+    //sClientIpAddress = sIpAddressBase[iCurBase] + to_string(iCurIpInBase);
 
     ClientList.AddClient(sHostIpAddressString, iNextPortNum, sClientIpAddress.c_str());
     cout << "Added client on " << sClientIpAddress << " targeting " << sHostIpAddressString << "::" << iNextPortNum << endl;
@@ -143,7 +148,7 @@ int TraverseArgList(const char *sArgList[])
 
   while (sArg != NULL) {
     if (!strcmp(sArg, "-help")) {
-      cout << "Usage: " << sProgramName << " [-d] [-f client_ip_list_filename] [-h host_ip] [-p first_server_port] [-n num_clients] " << endl;
+      cout << "Usage: " << sProgramName << " [-d] [-f client_ip_list_filename] [-h host_ip] [-p first_server_port] [-c client_ip] [-n num_clients] " << endl;
       cout << "  You must either provide either -f or -h, not both" << endl;
       cout << "  The -p/-n are optional.  If you do not provide them, defaults will be used." << endl;
       cout << "  If you provide -f, you can include port numbers in the file, or use the -p argument" << endl;
@@ -164,6 +169,11 @@ int TraverseArgList(const char *sArgList[])
     else if (!strcmp(sArg, "-h"))  {
       sHostIpAddressString = *sArgList++;
       b_hFlagIsPresent = true;
+    }
+
+    else if (!strcmp(sArg, "-c"))  {
+      sClientIpAddressString = *sArgList++;
+      b_cFlagIsPresent = true;
     }
 
     else if (!strcmp(sArg, "-p"))  {
@@ -214,8 +224,12 @@ int main (int argc, const char **argv)
   else                   PopulateFromValues();
 
   // Start periodic scheduling
-  std::chrono::steady_clock::time_point  schedTime = std::chrono::steady_clock::now();
-  std::chrono::duration<int, std::milli> intervalInMs(SEND_INTERVAL_IN_MILLISECONDS);  
+  auto  schedTime = chrono::high_resolution_clock::now();
+  chrono::duration<int, std::milli> intervalInMs(SEND_INTERVAL_IN_MILLISECONDS);  
+
+  // Adjust timer to start on next second
+  chrono::duration<int, std::micro> timerAdjustment(MICROSECONDS_PER_SECOND - chrono::duration_cast<chrono::microseconds>(schedTime.time_since_epoch()).count() % MICROSECONDS_PER_SECOND);
+  schedTime += timerAdjustment;
 
   while (1) { 
     ClientList.EmitMessagesFromAll();
