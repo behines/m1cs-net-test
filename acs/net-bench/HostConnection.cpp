@@ -44,7 +44,10 @@ tHostConnection::tHostConnection(const char *sServer, const char *sHostname, int
     cerr << "                 net_connect() error: " << NET_ERRSTR(_fdConnection) << ": " << strerror(errno) << endl;
   }
   else {
-    cout << "Connected to " << _sServer << " on " << _sHostname << endl;
+    // GLB: single call to << operator is thread safe however multiple << is not
+    // cout << "Connected to " << _sServer << " on " << _sHostname << endl;
+    string s = "Connected to " + _sServer + " on " + _sHostname + "\n";
+    cout << s;
   }
 }
 
@@ -106,7 +109,10 @@ tHostConnection::~tHostConnection()
 
 void *tHostConnection::_Thread()
 {
-  cout << "Starting thread for " << _sHostname << "::" << _sServer << endl;
+  // GLB: single call to << operator is thread safe however multiple << is not
+  //cout << "Starting thread for " << _sHostname << "::" << _sServer << endl;
+  string s = "Starting thread for " + _sHostname + "::" + _sServer + "\n";
+  cout << s;
   while (!_bExit) {  // Flag from base tPThread class
     ProcessIncomingMessage();
   }
@@ -138,7 +144,9 @@ int tHostConnection::ProcessIncomingMessage()
     return len;
   }
   else if (len == NEOF) {
-    cout << _sHostname << "::" << _sServer << ": Ending connection..." << endl;
+    //cout << _sHostname << "::" << _sServer << ": Ending connection..." << endl;
+    string s = _sHostname + "::" + _sServer + ": Ending connection...\n";
+    cout << s;
   }
   else {
     if (_bDebug) {
