@@ -31,10 +31,10 @@ LLIBS =
 LDLIBS = 
 
 # EXES: name of executable(s) to be created.
-EXES = StructSize 
+EXES = StructSize AnalyzeNetTest
 
 # SRCS: list of source files to be compiled/linked with EXE.o 
-SRCS = 
+SRCS =  SegmentData.cpp
 
 # LIB: Name of library to be created.
 LIB = util

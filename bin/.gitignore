@@ -2,6 +2,9 @@
 *
 # Except this file
 !.gitignore
+!launch_test.sh
+!gen_ethers.sh
+!hosts.awk
 !codesonar.sh
 !key.pem
 !cert.pem

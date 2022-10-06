@@ -224,7 +224,8 @@ int main (int argc, const char **argv)
   else                   PopulateFromValues();
 
   // Start periodic scheduling
-  auto  schedTime = chrono::high_resolution_clock::now();
+  // auto  schedTime = chrono::high_resolution_clock::now();
+  auto  schedTime = chrono::steady_clock::now();
   chrono::duration<int, std::milli> intervalInMs(SEND_INTERVAL_IN_MILLISECONDS);  
 
   // Adjust timer to start on next second
