@@ -139,7 +139,7 @@ startup_udp () {
 
 stop () {
   echo "Stopping test servers ..."
-  for i in ${SIM_HOSTS} "root@${SEG_HOST};" do
+  for i in ${SIM_HOSTS} "root@${SEG_HOST}" ; do
     ssh -q -n -f $i "sudo killall ${SERVER}"
   done
   sudo killall ${CLIENT}
