@@ -9,249 +9,287 @@
       "showReuseMessage": true,
   },
   "tasks": [
-        /* Configure launch.json (debug) preLaunchTask Task */
-        {
-          "label": "deploy-gdb-segA1",
-          "isBackground": true,
-          "problemMatcher":{
-              "base": "$gcc",
-              "background": {
-                  "activeOnStart": true,
-                  "beginsPattern":  "Deploying to target",
-                  "endsPattern":  "Starting GDB Server on Target"
-              }
-          },
-          "type": "shell",
-          "command": "sh",
-          "args": [
-              "deploy-gdb.sh",
-              "${config:AM64.TARGET_IP}",
-              "${config:AM64.PROGRAM}",
-              "${config:AM64.PROGRAM_ARGS}",
-              "${config:AM64.TARGET_BIN_DIR}",
-              "${config:AM64.TARGET_USERNAME}",
-              "${config:AM64.LOCAL_BIN_DIR}"
-          ],
-          "dependsOn": ["build"],
-      },
-
-      {
-        "label": "deploy-gdb-glc_sega1",
-        "isBackground": true,
-        "problemMatcher":{
-            "base": "$gcc",
-            "background": {
-                "activeOnStart": true,
-                "beginsPattern":  "Deploying to target",
-                "endsPattern":  "Starting GDB Server on Target"
-            }
-        },
-        "type": "shell",
-        "command": "sh",
-        "args": [
-            "deploy-gdb.sh",
-            "${config:GLC_SegA1.TARGET_IP}",
-            "${config:GLC_SegA1.PROGRAM}",
-            "${config:GLC_SegA1.PROGRAM_ARGS}",
-            "${config:GLC_SegA1.TARGET_BIN_DIR}",
-            "${config:GLC_SegA1.TARGET_USERNAME}",
-            "${config:GLC_SegA1.LOCAL_BIN_DIR}"
-        ],
-        "dependsOn": ["build"],
-      },
-
-      {
-        "label": "deploy-gdb-glc_segsim",
-        "isBackground": true,
-        "problemMatcher":{
-            "base": "$gcc",
-            "background": {
-                "activeOnStart": true,
-                "beginsPattern":  "Deploying to target",
-                "endsPattern":  "Starting GDB Server on Target"
-            }
-        },
-        "type": "shell",
-        "command": "sh",
-        "args": [
-            "deploy-gdb.sh",
-            "${config:GLC_SegSim.TARGET_IP}",
-            "${config:GLC_SegSim.PROGRAM}",
-            "${config:GLC_SegSim.PROGRAM_ARGS}",
-            "${config:GLC_SegSim.TARGET_BIN_DIR}",
-            "${config:GLC_SegSim.TARGET_USERNAME}",
-            "${config:GLC_SegSim.LOCAL_BIN_DIR}"
-        ],
-        "dependsOn": ["build"],
-      },
-
-      {
-        "label": "deploy-gdb-sectorsim",
-        "isBackground": true,
-        "problemMatcher":{
-            "base": "$gcc",
-            "background": {
-                "activeOnStart": true,
-                "beginsPattern":  "Deploying to target",
-                "endsPattern":  "Starting GDB Server on Target"
-            }
-        },
-        "type": "shell",
-        "command": "sh",
-        "args": [
-            "deploy-gdb.sh",
-            "${config:SECTORSIM.TARGET_IP}",
-            "${config:SECTORSIM.PROGRAM}",
-            "${config:SECTORSIM.PROGRAM_ARGS}",
-            "${config:SECTORSIM.TARGET_BIN_DIR}",
-            "${config:SECTORSIM.TARGET_USERNAME}",
-            "${config:SECTORSIM.LOCAL_BIN_DIR}"
-        ],
-        "dependsOn": ["build"],
-      },
-
-      {
-        "label": "deploy-gdb-nodesim",
-        "isBackground": true,
-        "problemMatcher":{
-            "base": "$gcc",
-            "background": {
-                "activeOnStart": true,
-                "beginsPattern":  "Deploying to target",
-                "endsPattern":  "Starting GDB Server on Target"
-            }
-        },
-        "type": "shell",
-        "command": "sh",
-        "args": [
-            "deploy-gdb.sh",
-            "${config:NODESIM.TARGET_IP}",
-            "${config:NODESIM.PROGRAM}",
-            "${config:NODESIM.PROGRAM_ARGS}",
-            "${config:NODESIM.TARGET_BIN_DIR}",
-            "${config:NODESIM.TARGET_USERNAME}",
-            "${config:NODESIM.LOCAL_BIN_DIR}"
-        ],
-        "dependsOn": ["build"],
-      },
-
-      {
-        "label": "deploy-gdb-segmentsim",
-        "isBackground": true,
-        "problemMatcher":{
-            "base": "$gcc",
-            "background": {
-                "activeOnStart": true,
-                "beginsPattern":  "Deploying to target",
-                "endsPattern":  "Starting GDB Server on Target"
-            }
-        },
-        "type": "shell",
-        "command": "sh",
-        "args": [
-            "deploy-gdb.sh",
-            "${config:SEGMENTSIM.TARGET_IP}",
-            "${config:SEGMENTSIM.PROGRAM}",
-            "${config:SEGMENTSIM.PROGRAM_ARGS}",
-            "${config:SEGMENTSIM.TARGET_BIN_DIR}",
-            "${config:SEGMENTSIM.TARGET_USERNAME}",
-            "${config:SEGMENTSIM.LOCAL_BIN_DIR}"
-        ],
-        "dependsOn": ["build"],
-      },
-
-
-      /* Configure Build Task */
-      {
-        "label": "build",
-        "dependsOn": ["main_build", "tstsrv_build"],
-        "group": {
-          "kind": "build",
-          "isDefault": true
-        },
-      },
-
-      {
-        "label": "main_build",
-        "type": "shell",
-        "command": "make -f ../Makefile -j$(nproc) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
-        "group": {
-          "kind": "build",
-        },
-        "problemMatcher": ["$gcc"]
-        /*
-        "problemMatcher": {
-          "owner": "cpp",
-          "fileLocation":  [
-            "absolute"
-          ],
-          "pattern": {
-            "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "severity": 4,
-            "message": 5
-          }
-        }
-        */
-      },
-
-      {
-        "label": "tstsrv_build",
-        "type": "shell",
-        "command": "(cd net_am64x; make -f ../../Makefile -j$(nproc) lscs_tstsrv_am64x) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
-        "group": {
-          "kind": "build",
-        },
-        "problemMatcher": ["$gcc"]
-        /*
-        "problemMatcher": {
-          "owner": "cpp",
-          "fileLocation":  [
-            "absolute"
-          ],
-          "pattern": {
-            "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "severity": 4,
-            "message": 5
-          }
-        }
-        */
-      },
-
-      {
-        "label": "Stock Build",
-        "type": "shell",
-        "command": "make",
-        "group": {
-          "kind": "build",
-          "isDefault": false
-        },
-        "problemMatcher": {
-          "owner": "cpp",
-          "fileLocation":  [
-            "relative",
-            "${workspaceFolder}"
-          ],
-          "pattern": {
-            "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "severity": 4,
-            "message": 5
-          }
+    {
+      "label": "deploy-gdb-segA1",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$gcc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Deploying to target",
+          "endsPattern": "Starting GDB Server on Target"
         }
       },
-      {
-        "label": "build-orig",
-        "type": "shell",
-        "command": "make -f ../Makefile -j$(nproc)",
-        "problemMatcher": ["$gcc"]
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-gdb.sh",
+        "${config:AM64.TARGET_IP}",
+        "${config:AM64.PROGRAM}",
+        "${config:AM64.PROGRAM_ARGS}",
+        "${config:AM64.TARGET_BIN_DIR}",
+        "${config:AM64.TARGET_USERNAME}",
+        "${config:AM64.LOCAL_BIN_DIR}"
+      ],
+      "dependsOn": [
+        "build"
+      ]
+    },
+    {
+      "label": "deploy-gdb-glc_sega1",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$gcc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Deploying to target",
+          "endsPattern": "Starting GDB Server on Target"
+        }
       },
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-gdb.sh",
+        "${config:GLC_SegA1.TARGET_IP}",
+        "${config:GLC_SegA1.PROGRAM}",
+        "${config:GLC_SegA1.PROGRAM_ARGS}",
+        "${config:GLC_SegA1.TARGET_BIN_DIR}",
+        "${config:GLC_SegA1.TARGET_USERNAME}",
+        "${config:GLC_SegA1.LOCAL_BIN_DIR}"
+      ],
+      "dependsOn": [
+        "build"
+      ]
+    },
+    {
+      "label": "deploy-gdb-glc_segsim",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$gcc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Deploying to target",
+          "endsPattern": "Starting GDB Server on Target"
+        }
+      },
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-gdb.sh",
+        "${config:GLC_SegSim.TARGET_IP}",
+        "${config:GLC_SegSim.PROGRAM}",
+        "${config:GLC_SegSim.PROGRAM_ARGS}",
+        "${config:GLC_SegSim.TARGET_BIN_DIR}",
+        "${config:GLC_SegSim.TARGET_USERNAME}",
+        "${config:GLC_SegSim.LOCAL_BIN_DIR}"
+      ],
+      "dependsOn": [
+        "build"
+      ]
+    },
+    {
+      "label": "deploy-gdb-sectorsim",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$gcc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Deploying to target",
+          "endsPattern": "Starting GDB Server on Target"
+        }
+      },
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-gdb.sh",
+        "${config:SECTORSIM.TARGET_IP}",
+        "${config:SECTORSIM.PROGRAM}",
+        "${config:SECTORSIM.PROGRAM_ARGS}",
+        "${config:SECTORSIM.TARGET_BIN_DIR}",
+        "${config:SECTORSIM.TARGET_USERNAME}",
+        "${config:SECTORSIM.LOCAL_BIN_DIR}"
+      ],
+      "dependsOn": [
+        "build"
+      ]
+    },
+    {
+      "label": "deploy-gdb-nodesim",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$gcc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Deploying to target",
+          "endsPattern": "Starting GDB Server on Target"
+        }
+      },
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-gdb.sh",
+        "${config:NODESIM.TARGET_IP}",
+        "${config:NODESIM.PROGRAM}",
+        "${config:NODESIM.PROGRAM_ARGS}",
+        "${config:NODESIM.TARGET_BIN_DIR}",
+        "${config:NODESIM.TARGET_USERNAME}",
+        "${config:NODESIM.LOCAL_BIN_DIR}"
+      ],
+      "dependsOn": [
+        "build"
+      ]
+    },
+    {
+      "label": "deploy-gdb-segmentsim",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$gcc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Deploying to target",
+          "endsPattern": "Starting GDB Server on Target"
+        }
+      },
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-gdb.sh",
+        "${config:SEGMENTSIM.TARGET_IP}",
+        "${config:SEGMENTSIM.PROGRAM}",
+        "${config:SEGMENTSIM.PROGRAM_ARGS}",
+        "${config:SEGMENTSIM.TARGET_BIN_DIR}",
+        "${config:SEGMENTSIM.TARGET_USERNAME}",
+        "${config:SEGMENTSIM.LOCAL_BIN_DIR}"
+      ],
+      "dependsOn": [
+        "build"
+      ]
+    },
+    {
+      "label": "build",
+      "dependsOn": [
+        "main_build",
+        "tstsrv_build"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "main_build",
+      "type": "shell",
+      "command": "make -f ../Makefile -j$(nproc) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "tstsrv_build",
+      "type": "shell",
+      "command": "(cd net_am64x; make -f ../../Makefile -j$(nproc) lscs_tstsrv_am64x) |& mawk -Winteractive 'BEGIN{ORS=\"\"} /Entering directory/ { curdir=substr($4,2,length($4)-2) }  /(warning|error):/ { print curdir \"/\" } { print $0 \"\\n\" }'",
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "Stock Build",
+      "type": "shell",
+      "command": "make",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": {
+        "owner": "cpp",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    },
+    {
+      "label": "build-orig",
+      "type": "shell",
+      "command": "make -f ../Makefile -j$(nproc)",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "deploy-glc",
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-all-binaries.sh",
+        "${config:GLC.TARGET_IP}",
+        "${config:GLC.TARGET_BIN_DIR}",
+        "${config:GLC.TARGET_USERNAME}",
+        "${config:GLC.LOCAL_BIN_DIR}"
+      ]
+    },
+    {
+      "label": "deploy-sectorsim",
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-all-binaries.sh",
+        "${config:SECTORSIM.TARGET_IP}",
+        "${config:SECTORSIM.TARGET_BIN_DIR}",
+        "${config:SECTORSIM.TARGET_USERNAME}",
+        "${config:SECTORSIM.LOCAL_BIN_DIR}"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "deploy-nodesim",
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-all-binaries.sh",
+        "${config:NODESIM.TARGET_IP}",
+        "${config:NODESIM.TARGET_BIN_DIR}",
+        "${config:NODESIM.TARGET_USERNAME}",
+        "${config:NODESIM.LOCAL_BIN_DIR}"
+      ]
+    },
+    {
+      "label": "deploy-segsim",
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-all-binaries.sh",
+        "${config:SEGMENTSIM.TARGET_IP}",
+        "${config:SEGMENTSIM.TARGET_BIN_DIR}",
+        "${config:SEGMENTSIM.TARGET_USERNAME}",
+        "${config:SEGMENTSIM.LOCAL_BIN_DIR}"
+      ]
+    },
+    {
+      "label": "deploy-segA1",
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-all-binaries.sh",
+        "${config:SEGA1.TARGET_IP}",
+        "${config:SEGA1.TARGET_BIN_DIR}",
+        "${config:SEGA1.TARGET_USERNAME}",
+        "${config:SEGA1.LOCAL_BIN_DIR}"
+      ]
+    },
   ]
 }

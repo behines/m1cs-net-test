@@ -1,5 +1,5 @@
 {
-  "AM64": {
+  "SEGA1": {
     /* Site-specific Settings */
     "SDK_PATH":"/opt/ti/arago-2021.09-aarch64",
 
@@ -11,11 +11,26 @@
     /* Project Settings */
     "PROGRAM":"lscs_tstsrv_am64x",
     "PROGRAM_ARGS":" ",
-    "LOCAL_BIN_DIR":"net_am64x/",
+    "LOCAL_BIN_DIR":"../bin/am64x/",
 
     /* Yocto SDK Configuration */
     "ARCH":"aarch64-none-linux-gnu",
     "SDKTARGETSYSROOT":     "${config:AM64.SDK_PATH}/sysroots/aarch64-linux",
+  },
+
+  "GLC": {
+    /* Site-specific Settings */
+    
+    /* Target Settings */
+    "TARGET_IP":"10.0.0.1",
+    "TARGET_BIN_DIR":"/home/$USER/bin",	
+    "TARGET_USERNAME": "$USER",
+
+    /* Project Settings */
+    "PROGRAM":"rtc_tstcli",
+    /* "PROGRAM_ARGS":"-s app_srv19 -h 10.4.0.3", */
+    "PROGRAM_ARGS":"-f HostListOneLine.txt",
+    "LOCAL_BIN_DIR":"../bin/",
   },
 
   "GLC_SegA1": {
@@ -23,8 +38,8 @@
     
     /* Target Settings */
     "TARGET_IP":"10.0.0.1",
-    "TARGET_BIN_DIR":"/home/gbrack/bin",	
-    "TARGET_USERNAME": "gbrack",
+    "TARGET_BIN_DIR":"/home/$USER/bin",	
+    "TARGET_USERNAME": "$USER",
 
     /* Project Settings */
     "PROGRAM":"rtc_tstcli",
@@ -37,8 +52,8 @@
     
     /* Target Settings */
     "TARGET_IP":"10.0.0.1",
-    "TARGET_BIN_DIR":"/home/gbrack/bin",	
-    "TARGET_USERNAME": "gbrack",
+    "TARGET_BIN_DIR":"/home/$USER/bin",	
+    "TARGET_USERNAME": "$USER",
 
     /* Project Settings */
     "PROGRAM":"rtc_tstcli",
@@ -52,13 +67,13 @@
     
     /* Target Settings */
     "TARGET_IP":"10.4.0.1",
-    "TARGET_BIN_DIR":"/home/gbrack/bin",	
-    "TARGET_USERNAME": "gbrack",
+    "TARGET_BIN_DIR":"/home/$USER/bin",	
+    "TARGET_USERNAME": "$USER",
 
     /* Project Settings */
     "PROGRAM":"lscs_tstsrv",
     "PROGRAM_ARGS":" ",
-    "LOCAL_BIN_DIR":"net-bench/",
+    "LOCAL_BIN_DIR":"../bin/",
   },
 
   "NODESIM": {
@@ -66,13 +81,13 @@
     
     /* Target Settings */
     "TARGET_IP":"10.4.0.2",
-    "TARGET_BIN_DIR":"/home/gbrack/bin",	
-    "TARGET_USERNAME": "gbrack",
+    "TARGET_BIN_DIR":"/home/$USER/bin",	
+    "TARGET_USERNAME": "$USER",
 
     /* Project Settings */
     "PROGRAM":"lscs_tstsrv",
     "PROGRAM_ARGS":" ",
-    "LOCAL_BIN_DIR":"net-bench/",
+    "LOCAL_BIN_DIR":"../bin/",
   },
 
   "SEGMENTSIM": {
@@ -80,12 +95,14 @@
     
     /* Target Settings */
     "TARGET_IP":"10.4.0.3",
-    "TARGET_BIN_DIR":"/home/gbrack/bin",	
-    "TARGET_USERNAME": "gbrack",
+    "TARGET_BIN_DIR":"/home/$USER/bin",	
+    "TARGET_USERNAME": "$USER",
 
     /* Project Settings */
     "PROGRAM":"lscs_tstsrv",
     "PROGRAM_ARGS":" ",
     "LOCAL_BIN_DIR":"../bin/",
   },
+
+
 }
