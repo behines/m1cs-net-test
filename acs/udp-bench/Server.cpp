@@ -195,7 +195,6 @@ tServer::tServer(tServer &&other) noexcept :
   _iPortNum     = other._iPortNum;
 }
 
-
 /***************************************************
 * tServer destructor
 *
@@ -205,7 +204,6 @@ tServer::~tServer()
 {
 }
 
-
 /***************************************************
 * tServer::_Thread
 *
@@ -213,14 +211,13 @@ tServer::~tServer()
 
 void *tServer::_Thread()
 {
-  cout << "Starting thread on port " << _iPortNum << endl;
+  string s = "Starting thread on port " + to_string(_iPortNum) + "\n";
+  cout << s;
 
   ProcessIncomingMessages();
 
   return 0;
 }
-
-
 
 /*****************************
 * tServer::ProcessIncomingMessage
@@ -272,7 +269,6 @@ tServerList::tServerList(int iFirstPortNum, int iLastPortNum, int iReceiveThread
   }
 }
 
-
 /***************************************************
 * tServerList::AddConnection
 *
@@ -289,9 +285,6 @@ int tServerList::AddServer(int iPortNum, int iReceiveThreadPriority)
 
   return 0;
 }
-
-
-
 
 /***************************************************
 * tServerList::ProcessTelemetryUsingThreads
