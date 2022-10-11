@@ -31,7 +31,7 @@ using namespace std;
 */
 
 tSampleLogger::tSampleLogger(int iPortNum) :
-  _SampleQueue(),
+  _SampleQueue(SAMPLE_QUEUE_BUFFER_DEPTH),
   _thread(),  // Thread creation is deferred.  See tSampleLogger::StartLoggerThread()
   _iPortNum(iPortNum)
 {
@@ -52,7 +52,7 @@ tSampleLogger::tSampleLogger(int iPortNum) :
 */
 
 tSampleLogger::tSampleLogger(tSampleLogger &&other) noexcept :
-  _SampleQueue(move(other._SampleQueue)),
+  _SampleQueue(std::move(other._SampleQueue)),
   // Mutex and condition variable cannot be moved.  
   _thread     (move(other._thread)),
   _iPortNum   (other._iPortNum)
@@ -93,8 +93,13 @@ void tSampleLogger::StartLoggerThread()
 void tSampleLogger::LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, struct sockaddr_in &ClientAddress)
 {
   std::lock_guard<std::mutex> cvLock(_SampleQueueMutex);
-  _SampleQueue.push(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, ClientAddress));
-  _SampleQueueCondition.notify_one();
+  _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, ClientAddress));
+  // When using boost, we can query how full the buffer is and wait until it is half full before printing anything, to reduce thread thrashing
+  #if defined(USE_BOOST_CIRCULAR_BUFFER) && defined(DEFER_PRINTING_WHEN_USING_BOOST)
+    if (_SampleQueue.size() > SAMPLE_QUEUE_BUFFER_DEPTH/2)  _SampleQueueCondition.notify_one();
+  #else
+    _SampleQueueCondition.notify_one();
+  #endif
 }
 
 
@@ -127,7 +132,7 @@ void tSampleLogger::PrintSamples()
       {
         std::scoped_lock cvLock(_SampleQueueMutex);
         Sample = _SampleQueue.front();
-        _SampleQueue.pop();
+        _SampleQueue.pop_front();
       }
 
       // Sample._ClientAddress is a sockaddr_in.  inet_ntop wants a struct in_addr, which is 

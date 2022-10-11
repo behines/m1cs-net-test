@@ -33,6 +33,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <string>
+#include "IpInterfaceInfo.h"
 
 class tLogger;
 
@@ -57,7 +58,7 @@ public:
 
 class tUdpClient {
 public:
-  tUdpClient(const std::string &sServerIpAddressString, int iPortNum, const char *sClientIpAddressString = NULL);
+  tUdpClient(const std::string &sServerIpAddressString, int iServerPortNum, const char *sClientIpAddressString = NULL);
 
   tUdpClient(tUdpClient &&obj) noexcept;  // Move constructor - needed so that destruction of temporary does not close file.
   // tHostConnection& operator=(tHostConnection&& other); // Move assignment operator, will add if needed
@@ -74,11 +75,12 @@ public:
   bool IsInitialized()  { return _bInitSuccessfully; }
 
 protected:
-  int                _sockTx;
-  struct sockaddr_in _SiHostTx;
+  static tIpInterfaceInfo _IpInterfaceInfo;
+  int                     _sockTx;
+  struct sockaddr_in      _SiHostTx;
 
-  uint8_t            _ui8MsgIndex;
-  bool               _bInitSuccessfully;
+  uint8_t                 _ui8MsgIndex;
+  bool                    _bInitSuccessfully;
 };
 
 
@@ -90,7 +92,7 @@ protected:
 
 class tUdpServer {
 public:
-  tUdpServer(int iPortNum);
+  tUdpServer(int iServerPortNum);
   tUdpServer(tUdpServer &&obj) noexcept;  // Move constructor - needed so that destruction of temporary does not close file.
   // tHostConnection& operator=(tHostConnection&& other); // Move assignment operator, will add if needed
 

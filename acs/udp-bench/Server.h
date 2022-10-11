@@ -9,14 +9,23 @@
 
 #include <string>
 #include <list>
-#include <queue>
+#include <deque>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <sys/time.h>
+#include <boost/circular_buffer.hpp>
 #include "PThread.h"
 #include "UdpConnection.h"
 
+#define USE_BOOST_CIRCULAR_BUFFER
+//#define DEFER_PRINTING_WHEN_USING_BOOST
+
+#ifdef  USE_BOOST_CIRCULAR_BUFFER
+#define SAMPLE_QUEUE_BUFFER_DEPTH (100)
+#else
+#define SAMPLE_QUEUE_BUFFER_DEPTH 
+#endif
 
 struct tLatencySample {
   tLatencySample() {}
@@ -50,7 +59,11 @@ public:
   void PrintSamples();
 
 protected:
-  std::queue<tLatencySample> _SampleQueue;
+  #ifdef  USE_BOOST_CIRCULAR_BUFFER
+    boost::circular_buffer<tLatencySample> _SampleQueue;
+  #else
+    std::deque<tLatencySample> _SampleQueue;
+  #endif
 
   // Mutex and condition variable to allow queue-draining method to block waiting on samples
   std::mutex              _SampleQueueMutex;

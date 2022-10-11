@@ -27,10 +27,10 @@ LLIBS =
 LDLIBS = -lpthread -lrt  --sysroot=$(SYSROOT)
 
 # EXES: name of executable(s) to be created.
-EXES = rtc_udp lscs_udp 
+EXES = lscs_udp 
 
 # SRCS: list of source files to be compiled/linked with EXE.o 
-SRCS = PThread.cpp UdpConnection.cpp Server.cpp Client.cpp 
+SRCS = PThread.cpp UdpConnection.cpp Client.cpp IpInterfaceInfo.cpp
 
 #rtc_udp.cpp UdpConnection.cpp Server.cpp Client.cpp PThread.cpp lscs_udp.cpp
 # LIB: Name of library to be created.

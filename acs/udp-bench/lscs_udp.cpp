@@ -30,6 +30,7 @@
 #include <list>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <chrono>
 
 #include "GlcMsg.h"
@@ -83,15 +84,23 @@ int         iCurIpInBase     =  1;
 
 int PopulateFromFile(string sFilename)
 {
-  std::string sHostIpAddressString;
+  std::string sClientIpAddressString;
+  std::string sPortNumAsString;
   int         iPortNum = -1;
-  std::ifstream HostListFile(sFilename);
+  std::ifstream ClientListFile(sFilename);
+  std::string line;
+  
+  while (std::getline(ClientListFile, line)) {
+    std::istringstream lineStream(line);
+    lineStream >> sClientIpAddressString >> iPortNum;
 
-  while (HostListFile >> sHostIpAddressString >> iPortNum) {
     if (iPortNum == -1) { // Port num not supplied, will autoincrement from defaults
       iPortNum = iNextPortNum++;
     }
-    ClientList.AddClient(sHostIpAddressString, iPortNum);
+
+    ClientList.AddClient(sHostIpAddressString, iPortNum, sClientIpAddressString.c_str());
+    //cout << "Added client on " << sClientIpAddressString << " targeting " << sHostIpAddressString << "::" << iPortNum << endl;
+
     iPortNum = -1;
   }
 
@@ -115,7 +124,7 @@ int PopulateFromValues()
     //sClientIpAddress = sIpAddressBase[iCurBase] + to_string(iCurIpInBase);
 
     ClientList.AddClient(sHostIpAddressString, iNextPortNum, sClientIpAddress.c_str());
-    cout << "Added client on " << sClientIpAddress << " targeting " << sHostIpAddressString << "::" << iNextPortNum << endl;
+    //cout << "Added client on " << sClientIpAddress << " targeting " << sHostIpAddressString << "::" << iNextPortNum << endl;
 
     #if DO_ROUND_ROBIN == 1
       // Increment the IP address.  Rotate - 10.0.2.1, 10.0.3.1, etc.
@@ -200,7 +209,6 @@ int TraverseArgList(const char *sArgList[])
   }
 
   // Check for valid combinations
-  if (b_hFlagIsPresent && b_fFlagIsPresent) return -1;
 
   if (b_nFlagIsPresent)  iLastPortNum = iNextPortNum + iNumClients - 1;
 
@@ -224,17 +232,16 @@ int main (int argc, const char **argv)
   else                   PopulateFromValues();
 
   // Start periodic scheduling
-  auto  schedTime = chrono::high_resolution_clock::now();
+  auto  schedTime = chrono::system_clock::now();
   chrono::duration<int, std::milli> intervalInMs(SEND_INTERVAL_IN_MILLISECONDS);  
 
   // Adjust timer to start on next second
-  chrono::duration<int, std::micro> timerAdjustment(MICROSECONDS_PER_SECOND - chrono::duration_cast<chrono::microseconds>(schedTime.time_since_epoch()).count() % MICROSECONDS_PER_SECOND);
-  schedTime += timerAdjustment;
+  schedTime = chrono::ceil<chrono::seconds>(schedTime);
 
   while (1) { 
     ClientList.EmitMessagesFromAll();
     schedTime += intervalInMs;
     std::this_thread::sleep_until(schedTime);
   }
- 
+
 }

@@ -46,6 +46,14 @@
 using namespace std;
 
 
+/*********************************************
+* Static member initialization
+*
+* This will read in the mapping of IP addresses to device names.
+*/
+
+tIpInterfaceInfo tUdpClient::_IpInterfaceInfo;
+
 
 /*********************************************
 * tUdpClient constructor 
@@ -58,19 +66,22 @@ using namespace std;
 *
 * INPUTS:
 *   sServerIpAddressString - server to target
-*   iPortNum               - port number on server to target
+*   iServerPortNum               - port number on server to target
 * SIDE EFFECTS:
 *   Creates and binds the sockets.
 *   Will set _bInitSuccessfully if construction is successful
 *   Will throw a tUdpConnectionException if an error occurs.
 */
 
-tUdpClient::tUdpClient(const string &sServerIpAddressString, int iPortNum, const char *sClientIpAddressString) 
+tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum, const char *sClientIpAddressString) 
 {
 
-  int iBroadcastEnable = (iPortNum == INADDR_ANY);
+  int iBroadcastEnable = (iServerPortNum == INADDR_ANY);
   in_addr_t ipServerAddressInBinary, ipClientAddressInBinary;
-  struct sockaddr_in siClientTx;
+  struct sockaddr_in siClientTx, siClientTxBound;
+  std::string sDeviceName;
+  char sIpAddressString[128];
+  char ifName[IFNAMSIZ];
 
   _bInitSuccessfully = false;
 
@@ -82,7 +93,7 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iPortNum, const
   // Prepare the sockaddr structure for transmissions, to the specified port
   bzero((char*)&_SiHostTx, sizeof(_SiHostTx));
   _SiHostTx.sin_family      = AF_INET;
-  _SiHostTx.sin_port        = htons(iPortNum);
+  _SiHostTx.sin_port        = htons(iServerPortNum);
   _SiHostTx.sin_addr.s_addr = ipServerAddressInBinary;
 
   // Initialize the socket to 0
@@ -110,15 +121,36 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iPortNum, const
     siClientTx.sin_port        = 0;
     siClientTx.sin_addr.s_addr = ipClientAddressInBinary;
 
+
+
     if (bind(_sockTx, (struct sockaddr *) &siClientTx, sizeof(siClientTx)) < 0) {
       throw tUdpConnectionException("Error binding UDP transmit socket");
     }
-    // cout << "Bound client to IP address " << sClientIpAddressString << endl;
 
+    sDeviceName = _IpInterfaceInfo.Ipv4BinaryAddressToDeviceName(ipClientAddressInBinary);
+    socklen_t slen = sDeviceName.length();
+
+    if (setsockopt(_sockTx, SOL_SOCKET, SO_BINDTODEVICE, (void *) sDeviceName.c_str(), slen) == -1) {
+      throw tUdpConnectionException("Error binding socket to device");
+    }
+   
+    socklen_t socklen = sizeof(siClientTxBound);
+
+    if (getsockname(_sockTx, (struct sockaddr *) &siClientTxBound, &socklen) < 0) {
+        throw tUdpConnectionException("Error reading back IP address of UDP transmit socket");
+    }
+    if (inet_ntop(AF_INET, &siClientTx.sin_addr.s_addr, sIpAddressString, 128) == NULL) {
+      throw tUdpConnectionException(string("Error converting IP address to string"));
+    }
+
+    slen = IFNAMSIZ;
+    if (getsockopt(_sockTx, SOL_SOCKET, SO_BINDTODEVICE, (void *) ifName, &slen) == -1) {
+      cerr << "getsockopt failed: " << strerror(errno) << endl;
+    }
   }
 
-
-  cout << "Created UDP transmit socket " << _sockTx << " to " << sServerIpAddressString << "::" << iPortNum << endl;
+  cout << "Created UDP transmit socket " << _sockTx << " (" << sIpAddressString << "::" << siClientTxBound.sin_port << ") on "
+       << ifName << " targeting " << sServerIpAddressString << "::" << iServerPortNum << endl;
 
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
@@ -209,7 +241,7 @@ tUdpClient::~tUdpClient()
 *   Will throw a tUdpConnectionException if an error occurs.
 */
 
-tUdpServer::tUdpServer(int iPortNum)
+tUdpServer::tUdpServer(int iServerPortNum)
 {
   int iBroadcastEnable = 1;
 
@@ -219,7 +251,7 @@ tUdpServer::tUdpServer(int iPortNum)
   // Prepare the sockaddr structure for receiving on the specified port
   bzero((char*)&_SiMe, sizeof(_SiMe));
   _SiMe.sin_family      = AF_INET;
-  _SiMe.sin_port        = htons(iPortNum);
+  _SiMe.sin_port        = htons(iServerPortNum);
   _SiMe.sin_addr.s_addr = INADDR_ANY;
 
   // Initialize the sockets to 0
