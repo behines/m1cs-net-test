@@ -118,10 +118,8 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
     }
     bzero((char*)&siClientTx, sizeof(siClientTx));
     siClientTx.sin_family      = AF_INET;
-    siClientTx.sin_port        = htons(iPortNum);
+    siClientTx.sin_port        = 0;
     siClientTx.sin_addr.s_addr = ipClientAddressInBinary;
-
-
 
     if (bind(_sockTx, (struct sockaddr *) &siClientTx, sizeof(siClientTx)) < 0) {
       throw tUdpConnectionException("Error binding UDP transmit socket");
