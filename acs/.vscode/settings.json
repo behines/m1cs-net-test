@@ -85,8 +85,8 @@
     "TARGET_USERNAME": "$USER",
 
     /* Project Settings */
-    "PROGRAM":"lscs_tstsrv",
-    "PROGRAM_ARGS":" ",
+    "PROGRAM":"lscs_udp",
+    "PROGRAM_ARGS":"-h 10.0.0.1 -p 30000 -f node-sim-ip-list-rr.txt",
     "LOCAL_BIN_DIR":"../bin/",
   },
 

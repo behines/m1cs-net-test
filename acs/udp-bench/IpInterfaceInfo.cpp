@@ -83,7 +83,7 @@ tIpInterfaceInfo::tIpInterfaceInfo()
 std::string tIpInterfaceInfo::Ipv4BinaryAddressToDeviceName(uint32_t Ipv4BinaryAddress)
 {
   try {
-    return _IpV4BinaryAddressToDeviceName[Ipv4BinaryAddress];
+    return _IpV4BinaryAddressToDeviceName.at(Ipv4BinaryAddress);
   } 
   catch (std::out_of_range &e) {
     std::ostringstream stream;

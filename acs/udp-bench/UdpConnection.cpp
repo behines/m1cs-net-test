@@ -79,7 +79,6 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
   int iBroadcastEnable = (iServerPortNum == INADDR_ANY);
   in_addr_t ipServerAddressInBinary, ipClientAddressInBinary;
   struct sockaddr_in siClientTx, siClientTxBound;
-  std::string sDeviceName;
   char sIpAddressString[128];
   char ifName[IFNAMSIZ];
 
@@ -125,10 +124,10 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
       throw tUdpConnectionException("Error binding UDP transmit socket");
     }
 
-    sDeviceName = _IpInterfaceInfo.Ipv4BinaryAddressToDeviceName(ipClientAddressInBinary);
-    socklen_t slen = sDeviceName.length();
+    _sDeviceName = _IpInterfaceInfo.Ipv4BinaryAddressToDeviceName(ipClientAddressInBinary);
+    socklen_t slen = _sDeviceName.length();
 
-    if (setsockopt(_sockTx, SOL_SOCKET, SO_BINDTODEVICE, (void *) sDeviceName.c_str(), slen) == -1) {
+    if (setsockopt(_sockTx, SOL_SOCKET, SO_BINDTODEVICE, (void *) _sDeviceName.c_str(), slen) == -1) {
       throw tUdpConnectionException("Error binding socket to device");
     }
    
@@ -149,7 +148,7 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
 
   cout << "Created UDP transmit socket " << _sockTx << " (" << sIpAddressString << "::" << siClientTxBound.sin_port << ") on "
        << ifName << " targeting " << sServerIpAddressString << "::" << iServerPortNum << endl;
-
+ 
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
 }
@@ -169,7 +168,8 @@ tUdpClient::tUdpClient(tUdpClient &&other) noexcept :
   _sockTx           (other._sockTx),
   _SiHostTx         (other._SiHostTx),
   _ui8MsgIndex      (other._ui8MsgIndex),
-  _bInitSuccessfully(other._bInitSuccessfully)
+  _bInitSuccessfully(other._bInitSuccessfully),
+  _sDeviceName      (other._sDeviceName)
 {
   other._sockTx = 0;  // Prevent the old object from closing the socket when it dies
 }

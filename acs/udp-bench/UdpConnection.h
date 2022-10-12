@@ -74,6 +74,8 @@ public:
 
   bool IsInitialized()  { return _bInitSuccessfully; }
 
+  const std::string &NetworkDeviceName() { return _sDeviceName; }
+
 protected:
   static tIpInterfaceInfo _IpInterfaceInfo;
   int                     _sockTx;
@@ -81,6 +83,7 @@ protected:
 
   uint8_t                 _ui8MsgIndex;
   bool                    _bInitSuccessfully;
+  std::string             _sDeviceName;  // Which network interface we are on
 };
 
 

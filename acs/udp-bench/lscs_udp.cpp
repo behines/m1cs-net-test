@@ -55,6 +55,7 @@ bool b_cFlagIsPresent = false;
 string sFilename;
 tClientList ClientList;
 
+int iSenderThreadPriority = 90;
 
 // Values when the info is not provided from a file
 string sHostIpAddressString = "10.0.0.1";
@@ -98,7 +99,7 @@ int PopulateFromFile(string sFilename)
       iPortNum = iNextPortNum++;
     }
 
-    ClientList.AddClient(sHostIpAddressString, iPortNum, sClientIpAddressString.c_str());
+    ClientList.AddClient(sHostIpAddressString, iPortNum, sClientIpAddressString.c_str(), iSenderThreadPriority);
     //cout << "Added client on " << sClientIpAddressString << " targeting " << sHostIpAddressString << "::" << iPortNum << endl;
 
     iPortNum = -1;
@@ -123,7 +124,7 @@ int PopulateFromValues()
     // Create an IP address string
     //sClientIpAddress = sIpAddressBase[iCurBase] + to_string(iCurIpInBase);
 
-    ClientList.AddClient(sHostIpAddressString, iNextPortNum, sClientIpAddress.c_str());
+    ClientList.AddClient(sHostIpAddressString, iNextPortNum, sClientIpAddress.c_str(), iSenderThreadPriority);
     //cout << "Added client on " << sClientIpAddress << " targeting " << sHostIpAddressString << "::" << iNextPortNum << endl;
 
     #if DO_ROUND_ROBIN == 1
@@ -185,6 +186,10 @@ int TraverseArgList(const char *sArgList[])
       b_cFlagIsPresent = true;
     }
 
+    else if (!strcmp(sArg, "-t"))  {
+      iSenderThreadPriority = atoi(*sArgList++);
+    } 
+
     else if (!strcmp(sArg, "-p"))  {
       iNextPortNum = atoi(*sArgList++);
       if (iNextPortNum <=0) {
@@ -230,6 +235,9 @@ int main (int argc, const char **argv)
 
   if (b_fFlagIsPresent)  PopulateFromFile(sFilename);
   else                   PopulateFromValues();
+
+  // Fire up the sender threads
+  ClientList.StartSenderThreads();
 
   // Start periodic scheduling
   auto  schedTime = chrono::system_clock::now();

@@ -90,20 +90,57 @@ int tClient::SendMessage()
 
 
 /***************************************************
-* tClientList::AddConnection
+* tClientList::AddClient
 *
 * INPUTS:
 */
 
-int tClientList::AddClient(const std::string &sServerIpAddressString, int iPortNum, const char *sClientIpAddressString)
+int tClientList::AddClient(const std::string &sServerIpAddressString, int iPortNum, const char *sClientIpAddressString,
+                           int iSenderThreadPriority)
 {
+  tClientSenderThread *pSenderThread;
+
   _ClientList.push_back(tClient(sServerIpAddressString, iPortNum, sClientIpAddressString));
+
+  // Add the new client to the thread associated with its network interface
+  tClient &NewClient =_ClientList.back();
+  const std::string &sNetworkDeviceName = NewClient.NetworkDeviceName();
+
+  // See if there is an existing entry
+  try {
+    pSenderThread = _SenderThreadList.at(sNetworkDeviceName);
+  } 
+  catch (std::out_of_range &e) {
+    // There isn't, so create one and add it to the map.
+    // In principle, pSenderThread should be a std::unique_ptr for proper cleanup, 
+    // but since we only destroy threads at program exit, the OS will clean up if we
+    // forget.  No need to complicate things.  But nonetheless, we do clean up in the
+    // destructor, but it's not RAII automatic cleanup.
+    pSenderThread = new tClientSenderThread(_ClientSendMutex, _ClientSendCondition, iSenderThreadPriority);
+    if (pSenderThread == nullptr) throw std::runtime_error("tClientList::AddClient: new tClientSenderThread failed.");
+    _SenderThreadList[sNetworkDeviceName] = pSenderThread;
+    cout << "Created ClientSenderThread for " << sNetworkDeviceName << endl;
+  }
+
+  // Now add the new client to the thread.
+  pSenderThread->AddClient(NewClient);
 
   return 0;
 }
 
 
+/***************************************************
+* StartSenderThreads::StartSenderThreads
+*    
+*/
 
+void tClientList::StartSenderThreads()
+{
+  for (auto & MappedPair : _SenderThreadList) {
+    // The thread is the second part of the pair
+    MappedPair.second->StartThread();
+  }
+}
 
 
 /***************************************************
@@ -113,8 +150,135 @@ int tClientList::AddClient(const std::string &sServerIpAddressString, int iPortN
 
 int tClientList::EmitMessagesFromAll()
 {
-  for (auto & Client : _ClientList) {
-    Client.SendMessage();
+  // Notify all blocked threads to unblock and send
+  std::lock_guard<std::mutex> cvLock(_ClientSendMutex);
+
+  // Notify all threads that this is a real awakening, not spurious (works around the fact that
+  // a condition variable can lead to spurious awakenings).
+  for (auto & MappedPair : _SenderThreadList) {
+    // The thread is the second part of the pair
+    MappedPair.second->NotifyThatAwakeningIsLegitimate();
+  }
+  
+  _ClientSendCondition.notify_all();
+
+  //for (auto & Client : _ClientList) {
+  //  Client.SendMessage();
+  //}
+
+  return 0;
+}
+
+
+/***************************************************
+* tClientList::~tClientList
+*    
+*/
+
+tClientList::~tClientList()
+{
+  // Clean up the allocated sender thread objects
+  for (auto & MappedPair : _SenderThreadList) {
+    // The thread is the second part of the pair
+    delete MappedPair.second;
+  }
+}
+
+
+/***************************************************
+* tClientSenderThread::tClientSenderThread
+*    
+*/
+
+tClientSenderThread::tClientSenderThread(std::mutex &ClientSendMutex, std::condition_variable &ClientSendCondition, 
+                                         int iSenderThreadPriority) :
+  tPThread(iSenderThreadPriority, true),
+  _ClientSendMutex(ClientSendMutex),
+  _ClientSendCondition(ClientSendCondition),
+  _bIsLegitimateAwakening(false)    
+{
+}
+
+
+/***************************************************
+* tClientSenderThread move constructor
+*
+* This is used during assignment of the temporary object to the list.  If we don't have a
+* move constructor, then the destructor for the temporary object will close the file
+* descriptor.
+*
+* INPUTS:
+*    other - the contents of the object being moved
+*/
+
+tClientSenderThread::tClientSenderThread(tClientSenderThread &&other) noexcept :
+  tPThread            (move(other)),
+  _ClientSendMutex    (     other._ClientSendMutex),
+  _ClientSendCondition(     other._ClientSendCondition),
+  _bIsLegitimateAwakening(  other._bIsLegitimateAwakening),
+  _ClientPointersList (move(other._ClientPointersList))
+{
+}
+
+
+/***************************************************
+* tClientSenderThread destructor
+*
+*/
+
+tClientSenderThread::~tClientSenderThread()
+{
+}
+
+
+/***************************************************
+* tClientSenderThread::AddClient
+*    
+*/
+
+void tClientSenderThread::AddClient(tClient &Client)
+{
+  _ClientPointersList.push_back(&Client);
+}
+
+
+/***************************************************
+* tClientSenderThread::EmitMessagesFromAll
+*    
+*/
+
+int tClientSenderThread::EmitMessagesFromAll()
+{
+  for (auto & pClient : _ClientPointersList) {
+    pClient->SendMessage();
+  }
+
+  return 0;
+}
+
+
+/***************************************************
+* tClientSenderThread::_Thread
+*    
+*/
+
+void *tClientSenderThread::_Thread()
+{
+  while (!_bExit) {
+    {
+      std::unique_lock cvLock(_ClientSendMutex);
+      // Block until notified that it is time to send.  This will unlock the mutex and then block.  
+      // There's actually no need to specify a predicate here, but we do anyway.  (We don't
+      // really care if we are spuriously awakened since we immediately test for our 
+      // predicate in the while loop below.)
+      _ClientSendCondition.wait(cvLock, [this] { return _bIsLegitimateAwakening; } );
+      // The mutex is now locked, but will be unlocked when the scoped_lock is destroyed
+
+      // Reset the predicate flag to once again prevent spurious awakenings.
+      _bIsLegitimateAwakening = false;
+    }
+
+    EmitMessagesFromAll();
   }
 
   return 0;

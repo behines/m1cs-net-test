@@ -35,6 +35,8 @@ public:
   
   int SendMessage();
 
+  const std::string &NetworkDeviceName() { return _UdpClient.NetworkDeviceName(); }
+
 protected:
   //virtual void *_Thread();
   int           _iPortNum;
@@ -44,18 +46,59 @@ protected:
 };
 
 
+class tClientSenderThread : public tPThread {
+public:
+  tClientSenderThread(std::mutex &ClientSendMutex, std::condition_variable &ClientSendCondition,
+                      int iSenderThreadPriority = 0);
+
+  tClientSenderThread(tClientSenderThread &&obj) noexcept;  // Move constructor - needed so that destruction of temporary does not close file.
+  // tHostConnection& operator=(tHostConnection&& other); // Move assignment operator, will add if needed
+
+  // Copy constructor and copy assignment operator are deleted - must only use move constructor
+  tClientSenderThread(const tClientSenderThread &) = delete;   
+  tClientSenderThread& operator=(const tClientSenderThread &) = delete;
+
+  ~tClientSenderThread();
+  
+  int EmitMessagesFromAll();
+
+  void AddClient(tClient &Client);
+
+  void NotifyThatAwakeningIsLegitimate() { _bIsLegitimateAwakening = true; }
+
+protected:
+  virtual void *_Thread();
+
+  std::mutex              &_ClientSendMutex;
+  std::condition_variable &_ClientSendCondition;
+  bool                     _bIsLegitimateAwakening;
+
+  std::list<tClient *>     _ClientPointersList;
+};
+
+
+
 
 class tClientList {
 public:
   tClientList() : _bExit(false) {}
-  int AddClient(const std::string &sServerIpAddressString, int iPortNum, const char *sClientIpAddressString = NULL);
+  int AddClient(const std::string &sServerIpAddressString, int iPortNum, const char *sClientIpAddressString,
+                int iSenderThreadPriority);
 
-  bool IsEmpty() { return _ClientList.empty(); }
-
+  void StartSenderThreads();
+  
   int EmitMessagesFromAll();
+
+  ~tClientList();
 
 protected:
   std::list<tClient> _ClientList;
+  std::map<std::string,tClientSenderThread *> _SenderThreadList;
+
+  // Mutex and condition variable for notifying individual threads to run
+  std::mutex              _ClientSendMutex;
+  std::condition_variable _ClientSendCondition;
+
   bool _bExit;
 };
 
