@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <linux/net_tstamp.h>
 
 #include <string>
 #include <cstring>
@@ -148,7 +149,7 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
 
   cout << "Created UDP transmit socket " << _sockTx << " (" << sIpAddressString << "::" << siClientTxBound.sin_port << ") on "
        << ifName << " targeting " << sServerIpAddressString << "::" << iServerPortNum << endl;
- 
+
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
 }
@@ -265,6 +266,14 @@ tUdpServer::tUdpServer(int iServerPortNum)
                  &iBroadcastEnable, sizeof(iBroadcastEnable)) < 0) {
     throw tUdpConnectionException("Error configuring UDP receive socket for broadcast");
   } 
+  
+  // Configure the socket to support hardware timestamping
+  int flags = SOF_TIMESTAMPING_RX_HARDWARE |
+              SOF_TIMESTAMPING_RAW_HARDWARE;
+  // SO_TIMESTAMPING_NEW guarantees that we get 64-bit timestamps
+  if (setsockopt(_sockRx, SOL_SOCKET, SO_TIMESTAMPING_NEW, &flags, sizeof(flags)) < 0) {
+    throw tUdpConnectionException("Error configuring UDP receive socket hardware timestamp support");
+  }
 
   // The receive socket has to be bound.  This associates the port with
   // the socket, so that the protocol layer knows which programs should get
@@ -275,6 +284,19 @@ tUdpServer::tUdpServer(int iServerPortNum)
 
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
+
+#if 0
+  // Initialize message header structure for use with recvmsg()
+  memset(&_MsgHdr,  0, sizeof(_MsgHdr));
+  memset(&_iov,     0, sizeof(_iov));
+  _MsgHdr.msg_iov        = &_iov;  // _iov will itself be populated in the call to ReceiveMessage()
+  _MsgHdr.msg_iovlen     = 1;
+  //_MsgHdr.msg_name       = &_SiMe;
+  //_MsgHdr.msg_namelen    = sizeof(_SiMe);
+  _MsgHdr.msg_control    = _MsgControlBuf;
+  _MsgHdr.msg_controllen = UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
+  #endif
+
 }
 
 
@@ -330,13 +352,60 @@ tUdpServer::~tUdpServer()
 ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_in *pClientAddress)
 {
   ssize_t n = 0;
-  socklen_t sz = sizeof(*pClientAddress);
+  struct cmsghdr     _MsgControlBuf;
+  //socklen_t sz = sizeof(*pClientAddress);
 
-  n = recvfrom(_sockRx, buf, szBufSize, 0, (struct sockaddr *) pClientAddress, &sz);
+  // n = recvfrom(_sockRx, buf, szBufSize, 0, (struct sockaddr *) pClientAddress, &sz);
+
+  // Initialize message header structure for use with recvmsg()
+  memset(&_MsgHdr,  0, sizeof(_MsgHdr));
+  memset(&_iov,     0, sizeof(_iov));
+  _MsgHdr.msg_iov        = _iov;  // _iov will itself be populated in the call to ReceiveMessage()
+  _MsgHdr.msg_iovlen     = 1;
+  //_MsgHdr.msg_name       = &_SiMe;
+  //_MsgHdr.msg_namelen    = sizeof(_SiMe);
+  _MsgHdr.msg_control    = &_MsgControlBuf;
+  _MsgHdr.msg_controllen = sizeof(_MsgControlBuf); //UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
+
+  // For sample recvmsg code that retrieves timestamps, see https://github.com/Xilinx-CNS/onload/blob/master/src/tests/onload/hwtimestamping/rx_timestamping.c
+  _iov[0].iov_base       = buf;
+  _iov[0].iov_len        = szBufSize;
+  _MsgHdr.msg_name    = pClientAddress;
+  _MsgHdr.msg_namelen = sizeof(*pClientAddress);
+
+
+  n = recvmsg(_sockRx, &_MsgHdr, 0);
 
   if (n < 0) {
 	  throw tUdpConnectionException(std::string("ReceiveMessage: ") + strerror(errno));
   }
 
   return n;
+}
+
+
+/*********************************************
+* tUdpServer::GetHardwareTimestampOfLastMessage
+*
+* SIDE EFFECTS:
+*
+* RETURNS:
+*   ssize_t
+*   If not NULL, *pClientAddress is populated with info on the source of the packet
+*/
+
+struct timespec tUdpServer::GetHardwareTimestampOfLastMessage()
+{
+  struct cmsghdr *pCmsgHdr;
+  struct timespec *ts = NULL;
+
+  // See "man CMSG_FIRSTHDR" for details on these macros
+  for (pCmsgHdr = CMSG_FIRSTHDR(&_MsgHdr); pCmsgHdr != NULL; pCmsgHdr = CMSG_NXTHDR(&_MsgHdr, pCmsgHdr))  {
+    if (pCmsgHdr->cmsg_level == SOL_SOCKET && pCmsgHdr->cmsg_type == SCM_TIMESTAMPING) {  // Note that SCM_TIMESTAMPING and SO_TIMESTAMPING are equivalent
+        ts = (struct timespec *) CMSG_DATA(pCmsgHdr);
+        // Hardware timestamps are passed in ts[2]
+        return ts[2];
+    }
+  }
+  return {0,0};
 }

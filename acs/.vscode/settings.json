@@ -62,6 +62,21 @@
     "LOCAL_BIN_DIR":"../bin/",
   },
 
+  "GLC_UDP": {
+    /* Site-specific Settings */
+    
+    /* Target Settings */
+    "TARGET_IP":"10.0.0.1",
+    "TARGET_BIN_DIR":"/home/$USER/bin",	
+    "TARGET_USERNAME": "$USER",
+
+    /* Project Settings */
+    "PROGRAM":"rtc_udp",
+    /* "PROGRAM_ARGS":"-s app_srv19 -h 10.4.0.3", */
+    "PROGRAM_ARGS":"-t 90 -p 30000 30455",
+    "LOCAL_BIN_DIR":"../bin/",
+  },
+
   "SECTORSIM": {
     /* Site-specific Settings */
     

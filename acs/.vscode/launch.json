@@ -72,6 +72,29 @@
   },
 
   {
+    "name": "GLC UDP debug",
+    "type": "cppdbg",
+    "request": "launch",
+    "program": "${config:GLC_UDP.LOCAL_BIN_DIR}/${config:GLC_UDP.PROGRAM}",
+    "args": [],
+    "stopAtEntry": true,
+    "cwd": "${workspaceFolder}",
+    "environment": [],
+    /* "console": "integratedTerminal", */
+    "externalConsole": false,
+    "MIMode": "gdb",
+    "targetArchitecture": "x86_64",
+    "preLaunchTask": "deploy-gdb-glc_udp",
+    "setupCommands": [{
+        "description": "Enable pretty-printing for gdb",
+        "text": "-enable-pretty-printing",
+        "ignoreFailures": true
+    }],
+    "miDebuggerPath": "/usr/bin/gdb-multiarch",
+    "miDebuggerServerAddress": "${config:GLC_UDP.TARGET_IP}:3000",
+  },
+
+  {
     "name": "SectorSim debug",
     "type": "cppdbg",
     "request": "launch",

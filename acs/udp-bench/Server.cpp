@@ -9,6 +9,7 @@
 #include <string.h>
 #include <signal.h>
 #include <iostream>
+#include <iomanip>
 #include <utility>
 
 extern "C" {
@@ -16,9 +17,16 @@ extern "C" {
   #include "GlcLscsIf.h"
 }
 
-#define MAX_MESSAGE_SIZE (sizeof(SegRtDataMsg))
+#define MAX_MESSAGE_SIZE (sizeof(SegRtDataMsg))  
 
 using namespace std;
+
+
+/***************************************************
+* Static member initialization
+*/
+
+tSamplePrinter tSampleLogger::_SamplePrinter;
 
 
 /***************************************************
@@ -32,9 +40,10 @@ using namespace std;
 
 tSampleLogger::tSampleLogger(int iPortNum) :
   _SampleQueue(SAMPLE_QUEUE_BUFFER_DEPTH),
-  _thread(),  // Thread creation is deferred.  See tSampleLogger::StartLoggerThread()
+  //_thread(),  // Thread creation is deferred.  See tSampleLogger::StartLoggerThread()
   _iPortNum(iPortNum)
 {
+  _SamplePrinter.AddLogger(this);
 }
 
 
@@ -54,9 +63,11 @@ tSampleLogger::tSampleLogger(int iPortNum) :
 tSampleLogger::tSampleLogger(tSampleLogger &&other) noexcept :
   _SampleQueue(std::move(other._SampleQueue)),
   // Mutex and condition variable cannot be moved.  
-  _thread     (move(other._thread)),
+  //_thread     (move(other._thread)),
   _iPortNum   (other._iPortNum)
 {
+  _SamplePrinter.RemoveLogger(&other);
+  _SamplePrinter.AddLogger(this);
 }
 
 
@@ -77,14 +88,14 @@ tSampleLogger::~tSampleLogger()
 * is complete.
 */
 
-void tSampleLogger::StartLoggerThread()
-{
-   _thread = std::thread(&tSampleLogger::PrintSamples, this);
-}
+//void tSampleLogger::StartLoggerThread()
+//{
+//   _thread = std::thread(&tSampleLogger::PrintSamples, this);
+//}
 
 
 /***************************************************
-* tSampleLogger LogSample
+* tSampleLogger::LogSample
 *
 * INPUTS:
 *    
@@ -95,62 +106,141 @@ void tSampleLogger::LogSample(int nRcvdByServer, int nSentByClient, struct timev
   std::lock_guard<std::mutex> cvLock(_SampleQueueMutex);
   _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, ClientAddress));
   // When using boost, we can query how full the buffer is and wait until it is half full before printing anything, to reduce thread thrashing
-  #if defined(USE_BOOST_CIRCULAR_BUFFER) && defined(DEFER_PRINTING_WHEN_USING_BOOST)
-    if (_SampleQueue.size() > SAMPLE_QUEUE_BUFFER_DEPTH/2)  _SampleQueueCondition.notify_one();
-  #else
-    _SampleQueueCondition.notify_one();
+
+  #if 0
+    #if defined(USE_BOOST_CIRCULAR_BUFFER) && defined(DEFER_PRINTING_WHEN_USING_BOOST)
+      if (_SampleQueue.size() > SAMPLE_QUEUE_BUFFER_DEPTH/2)  _SampleQueueCondition.notify_one();
+    #else
+      _SampleQueueCondition.notify_one();
+    #endif
   #endif
 }
 
 
 /***************************************************
-* tSampleLogger PrintSamples
+* tSampleLogger::DrainSampleQueue
+*
+* This method should be called from a non-realtime thread
+*
+* INPUTS:
+*    
+*/
+
+void tSampleLogger::DrainSampleQueue()
+{
+  tLatencySample Sample;
+
+  while (!_SampleQueue.empty()) {
+    {
+      std::scoped_lock cvLock(_SampleQueueMutex);
+      Sample = _SampleQueue.front();
+      _SampleQueue.pop_front();
+    }
+
+    ProcessSample(Sample);
+  }
+}
+
+
+/***************************************************
+* tSampleLogger::PopAndProcessSample
+*
+* INPUTS:
+*    
+*/
+
+void tSampleLogger::ProcessSample(const tLatencySample &Sample)
+{
+  struct timeval tmDiff;
+  char sHostIpString[40];
+  double dLatencyMicroseconds;
+
+  // Sample._ClientAddress is a sockaddr_in.  inet_ntop wants a struct in_addr, which is 
+  // the sin_addr member of the sockaddr_in
+  inet_ntop(AF_INET, &Sample._ClientAddress.sin_addr, sHostIpString, 40);
+
+  timersub(&Sample._tmRcv, &Sample._tmSent, &tmDiff);
+
+  PrintSample(sHostIpString, Sample._tmRcv, Sample._tmSent, tmDiff,
+              Sample._nRcvdByServer, Sample._nSentByClient);
+
+  dLatencyMicroseconds = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
+}
+
+
+/***************************************************
+* tSampleLogger::PrintSample
+*
+* INPUTS:
+*    
+*/
+
+void tSampleLogger:: PrintSample(const char *sHostIpString, const struct timeval &tmSent, 
+                                 const struct timeval &tmReceived, const struct timeval &tmDiff, 
+                                 int nReceivedByServer, int nSentByClient)
+{
+  (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
+                sHostIpString, _iPortNum,
+                tmSent.tv_sec,      tmSent.tv_usec, 
+                tmReceived .tv_sec, tmReceived .tv_usec,
+                tmDiff.tv_sec,      tmDiff.tv_usec, 
+                ((nReceivedByServer-1)%50)+1,
+                ((nSentByClient    -1)%50)+1);
+}
+
+
+
+/***************************************************
+* tSamplePrinter::tSamplePrinter
 *
 * INPUTS:
 */
 
-void tSampleLogger::PrintSamples()
+tSamplePrinter::tSamplePrinter()
 {
-  tLatencySample Sample;
-  struct timeval tmDiff;
-  char sHostIpString[40];
+  _PrintingThread = std::thread(&tSamplePrinter::SamplePrintingEndlessLoop, this);
+}
 
+
+/***************************************************
+* tSamplePrinter::AddLogger - adds the logger to the list of loggers that we should print out
+*
+* INPUTS:
+*/
+
+void tSamplePrinter::AddLogger(tSampleLogger *pLogger)
+{
+  _SampleLoggerList.push_back(pLogger);
+}
+
+
+/***************************************************
+* tSamplePrinter::RemoveLogger - deletes the specified logger from the list
+*
+* INPUTS:
+*/
+
+void tSamplePrinter::RemoveLogger(tSampleLogger *pLoggerToRemove)
+{
+  _SampleLoggerList.remove(pLoggerToRemove);
+}
+
+
+/***************************************************
+* tSampleLogge::SamplePrintingEndlessLoop
+*
+* INPUTS:
+*/
+
+void tSamplePrinter::SamplePrintingEndlessLoop()
+{
   while (1) {
-    {
-      std::unique_lock cvLock(_SampleQueueMutex);
-      // Block until notified that there is something in the queue.  This will unlock the 
-      // mutex and then block.  
-      // There's actually no need to specify a predicate here, but we do anyway.  (We don't
-      // really care if we are spuriously awakened since we immediately test for our 
-      // predicate in the while loop below.)
-      _SampleQueueCondition.wait(cvLock, [this] { return !_SampleQueue.empty(); } );
-      // The mutex is now locked, but will be unlocked when the scoped_lock is destroyed
+    // Loop over all the loggers in our list
+    for (auto & pLogger : _SampleLoggerList) {
+      pLogger->DrainSampleQueue();
     }
 
-    // Drain the queue
-    while (!_SampleQueue.empty()) {
-      {
-        std::scoped_lock cvLock(_SampleQueueMutex);
-        Sample = _SampleQueue.front();
-        _SampleQueue.pop_front();
-      }
-
-      // Sample._ClientAddress is a sockaddr_in.  inet_ntop wants a struct in_addr, which is 
-      // the sin_addr member of the sockaddr_in
-
-
-
-      inet_ntop(AF_INET, &Sample._ClientAddress.sin_addr, sHostIpString, 40);
-
-      timersub(&Sample._tmRcv, &Sample._tmSent, &tmDiff);
-      (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
-                     sHostIpString, _iPortNum,
-                     Sample._tmSent.tv_sec, Sample._tmSent.tv_usec, 
-                     Sample._tmRcv .tv_sec, Sample._tmRcv .tv_usec,
-                     tmDiff.tv_sec, tmDiff.tv_usec, 
-                     ((Sample._nRcvdByServer-1)%50)+1,
-                     ((Sample._nSentByClient-1)%50)+1);
-    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
 }
 
@@ -169,8 +259,6 @@ tServer::tServer(int iPortNum, int iReceiveThreadPriority) :
   _SampleLogger(iPortNum),
   _nReceived(0)
 {
-  
-
 }
 
 
@@ -281,7 +369,7 @@ tServerList::tServerList(int iFirstPortNum, int iLastPortNum, int iReceiveThread
 int tServerList::AddServer(int iPortNum, int iReceiveThreadPriority)
 {
   _ServerList.push_back(tServer(iPortNum, iReceiveThreadPriority));
-  _ServerList.back().StartSampleLoggerThread();
+  //_ServerList.back().StartSampleLoggerThread();
 
   return 0;
 }

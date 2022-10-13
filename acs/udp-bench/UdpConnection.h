@@ -37,6 +37,7 @@
 
 class tLogger;
 
+#define UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN (1024)
 
 /*********************
 * tUdpConnectionException - Exception thrown by the class
@@ -107,6 +108,7 @@ public:
   virtual ~tUdpServer();
 
   ssize_t ReceiveMessage(void *buf, size_t iBufSize, struct sockaddr_in *pClientAddress);
+  struct timespec GetHardwareTimestampOfLastMessage();
 
   bool IsInitialized()  { return _bInitSuccessfully; }
 
@@ -116,6 +118,13 @@ protected:
 
   uint8_t            _ui8MsgIndex;
   bool               _bInitSuccessfully;
+
+  // Stuff for timestamping support
+  struct iovec       _iov[1];
+  struct msghdr      _MsgHdr;
+  //char               _MsgControlBuf[UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN];
+  //struct cmsghdr     _MsgControlBuf;
+
 };
 
 

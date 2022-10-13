@@ -27,6 +27,12 @@
 #define SAMPLE_QUEUE_BUFFER_DEPTH 
 #endif
 
+class tSampleLogger;
+
+/***************************
+* tLatencySample
+*/
+
 struct tLatencySample {
   tLatencySample() {}
   tLatencySample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, struct sockaddr_in &ClientAddress) :
@@ -40,8 +46,35 @@ struct tLatencySample {
 };
 
 
+/***************************
+* tSamplePrinter - A thread that continuously drains the _SampleQueue of each tSampleLogger
+*
+* This thread runs at user priority, while the server threads run at realtime priority.
+*/
+
+class tSamplePrinter {
+public:
+  tSamplePrinter();
+
+  void AddLogger   (tSampleLogger *pLogger);
+  void RemoveLogger(tSampleLogger *pLoggerToRemove);
+
+protected:
+  void SamplePrintingEndlessLoop();
+
+  std::thread                _PrintingThread;
+  std::list<tSampleLogger *> _SampleLoggerList;
+};
+
+
+/***************************
+* tSampleLogger - A buffer for logging arriving samples and relaying them for printing
+*/
+
 class tSampleLogger {
 public:
+  friend class tSamplePrinter;
+
   tSampleLogger(int iPortNum);
 
   tSampleLogger(tSampleLogger &&obj) noexcept;  // Move constructor - needed so that destruction of temporary does not close file.
@@ -50,13 +83,18 @@ public:
   // Copy constructor and copy assignment operator are deleted - must only use move constructor
   tSampleLogger(const tSampleLogger &) = delete;   
   tSampleLogger& operator=(const tSampleLogger &) = delete;
+  
+  void DrainSampleQueue();
+  void ProcessSample(const tLatencySample &Sample);
+  void PrintSample(const char *sHostIpString, const struct timeval &tmSent,
+                   const struct timeval &tmReceived, const struct timeval &tmDiff,
+                   int nReceivedByServer, int nSentByClient);
 
   ~tSampleLogger();
 
   void StartLoggerThread();
 
   void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, struct sockaddr_in &ClientAddr);
-  void PrintSamples();
 
 protected:
   #ifdef  USE_BOOST_CIRCULAR_BUFFER
@@ -67,13 +105,19 @@ protected:
 
   // Mutex and condition variable to allow queue-draining method to block waiting on samples
   std::mutex              _SampleQueueMutex;
-  std::condition_variable _SampleQueueCondition;
+  // std::condition_variable _SampleQueueCondition;
+  // std::thread _thread;
 
-  std::thread _thread;
+  static tSamplePrinter   _SamplePrinter;
 
   int _iPortNum;
 };
 
+
+
+/***************************
+* tServer - A thread that hosts a tUdpServer to listen for messages
+*/
 
 class tServer : public tPThread {
 friend class tServerList;
@@ -89,7 +133,7 @@ public:
 
   ~tServer();
   
-  void StartSampleLoggerThread() { _SampleLogger.StartLoggerThread(); }
+  //void StartSampleLoggerThread() { _SampleLogger.StartLoggerThread(); }
 
   int ProcessIncomingMessages();
 
@@ -103,6 +147,9 @@ protected:
 };
 
 
+/***************************
+* tServerList - Container for all the Server thread objects
+*/
 
 class tServerList {
 public:

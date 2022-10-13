@@ -88,6 +88,32 @@
       ]
     },
     {
+      "label": "deploy-gdb-glc_udp",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$gcc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Deploying to target",
+          "endsPattern": "Starting GDB Server on Target"
+        }
+      },
+      "type": "shell",
+      "command": "sh",
+      "args": [
+        ".vscode/deploy-gdb.sh",
+        "${config:GLC_UDP.TARGET_IP}",
+        "${config:GLC_UDP.PROGRAM}",
+        "${config:GLC_UDP.PROGRAM_ARGS}",
+        "${config:GLC_UDP.TARGET_BIN_DIR}",
+        "${config:GLC_UDP.TARGET_USERNAME}",
+        "${config:GLC_UDP.LOCAL_BIN_DIR}"
+      ],
+      "dependsOn": [
+        "build"
+      ]
+    },
+    {
       "label": "deploy-gdb-sectorsim",
       "isBackground": true,
       "problemMatcher": {
