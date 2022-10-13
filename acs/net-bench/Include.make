@@ -15,10 +15,10 @@ TARGET=
 DEFINES = -DLINUX
 
 # CFLAGS: standard C compilier flags
-CFLAGS = --sysroot=$(SYSROOT) -Wall -g -O0 -fPIC -Wno-format-overflow 
+CFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -fPIC -Wno-format-overflow 
 
 # CXXFLAGS: standard C++ compilier flags to set
-CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O0 -fPIC -Wno-format-overflow -std=c++17
+CXXFLAGS = --sysroot=$(SYSROOT) -Wall -g -O -fPIC -Wno-format-overflow -std=c++17
 
 # LLIBS: local project libraries to linked to EXE.
 LLIBS = -lnet -lutil

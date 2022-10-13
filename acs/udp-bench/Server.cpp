@@ -11,6 +11,7 @@
 #include <iostream>
 #include <iomanip>
 #include <utility>
+#include <sys/timex.h>
 
 extern "C" {
   #include "GlcMsg.h"
@@ -102,10 +103,10 @@ tSampleLogger::~tSampleLogger()
 */
 
 void tSampleLogger::LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, 
-                              struct timeval &tmHwRcv, struct sockaddr_in &ClientAddress)
+                              struct timeval &tmHwRcv_TAI, struct sockaddr_in &ClientAddress)
 {
   std::lock_guard<std::mutex> cvLock(_SampleQueueMutex);
-  _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, tmHwRcv, ClientAddress));
+  _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, tmHwRcv_TAI, ClientAddress));
   // When using boost, we can query how full the buffer is and wait until it is half full before printing anything, to reduce thread thrashing
 
   #if 0
@@ -152,7 +153,7 @@ void tSampleLogger::DrainSampleQueue()
 
 void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 {
-  struct timeval tmDiff, tmRcvKernelLatency;
+  struct timeval tmDiff, tmRcvKernelLatency, tmHwRcvUTC;
   char sHostIpString[40];
   double dLatencyMicroseconds;
 
@@ -162,9 +163,12 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 
   timersub(&Sample._tmRcv, &Sample._tmSent, &tmDiff);
 
-  timersub(&Sample._tmRcv, &Sample._tmHwRcv, &tmRcvKernelLatency);
+  // The hardware timestamp is in TAI instead of UTC.  Convert
+  tmHwRcvUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwRcv_TAI);
 
-  PrintSample(sHostIpString, Sample._tmRcv, Sample._tmSent, tmDiff, Sample._tmHwRcv, tmRcvKernelLatency,
+  timersub(&Sample._tmRcv, &tmHwRcvUTC, &tmRcvKernelLatency);
+
+  PrintSample(sHostIpString, Sample._tmSent, Sample._tmRcv, tmDiff, tmHwRcvUTC, tmRcvKernelLatency,
               Sample._nRcvdByServer, Sample._nSentByClient);
 
   dLatencyMicroseconds = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
@@ -195,7 +199,6 @@ void tSampleLogger::PrintSample(const char *sHostIpString, const struct timeval 
 }
 
 
-
 /***************************************************
 * tSamplePrinter::tSamplePrinter
 *
@@ -204,7 +207,29 @@ void tSampleLogger::PrintSample(const char *sHostIpString, const struct timeval 
 
 tSamplePrinter::tSamplePrinter()
 {
+  struct ntptimeval ntv;
+  ntp_gettime(&ntv);
+
+  cout << "TAI offset = " << ntv.tai << " seconds" << endl;
+  _tvTaiOffset = { ntv.tai, 0 };
+
   _PrintingThread = std::thread(&tSamplePrinter::SamplePrintingEndlessLoop, this);
+}
+
+
+/***************************************************
+* tSamplePrinter::TAI_to_UTC - convert TAI time to UTC time
+*
+* INPUTS:
+*/
+
+struct timeval tSamplePrinter::TAI_to_UTC(const struct timeval &tv_TAI)
+{
+  struct timeval tv_UTC;
+
+  timersub(&tv_TAI, &_tvTaiOffset, &tv_UTC);
+
+  return tv_UTC;
 }
 
 
@@ -323,7 +348,7 @@ int tServer::ProcessIncomingMessages()
   ssize_t  len;;
   char buf[MAX_MESSAGE_SIZE];
   int            nSent;
-  struct timeval tmRcv, tmSent, tmHwRcv;
+  struct timeval tmRcv, tmSent, tmHwRcv_TAI;
   struct sockaddr_in ClientAddress;
 
   while (!_bExit) {  // Flag from base tPThread class
@@ -339,9 +364,9 @@ int tServer::ProcessIncomingMessages()
     nSent  = ((DataHdr *) buf)->hdr.msgId;
 
     // Retrieve the hardware timestamp
-    tmHwRcv = _UdpServer.GetHardwareTimestampOfLastMessage();
+    tmHwRcv_TAI = _UdpServer.GetHardwareTimestampOfLastMessage();
 
-    _SampleLogger.LogSample(++_nReceived, nSent, tmRcv, tmSent, tmHwRcv, ClientAddress);
+    _SampleLogger.LogSample(++_nReceived, nSent, tmRcv, tmSent, tmHwRcv_TAI, ClientAddress);
   }
 
   return 0;
@@ -370,9 +395,7 @@ tServerList::tServerList(int iFirstPortNum, int iLastPortNum, int iReceiveThread
 * tServerList::AddConnection
 *
 * INPUTS:
-*    sServer   - string descriptor of the service we are connecting to,
-*                e.g., "app_srv19"
-*    sHostname - hostname or dot-separated IP address
+*    
 */
 
 int tServerList::AddServer(int iPortNum, int iReceiveThreadPriority)

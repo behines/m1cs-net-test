@@ -36,15 +36,15 @@ class tSampleLogger;
 struct tLatencySample {
   tLatencySample() {}
   tLatencySample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, 
-                 struct timeval &tmHwRcv, struct sockaddr_in &ClientAddress) :
+                 struct timeval &tmHwRcv_TAI, struct sockaddr_in &ClientAddress) :
     _nRcvdByServer(nRcvdByServer), _nSentByClient(nSentByClient), _tmRcv(tmRcv), _tmSent(tmSent), 
-    _tmHwRcv(tmHwRcv), _ClientAddress(ClientAddress) {}
+    _tmHwRcv_TAI(tmHwRcv_TAI), _ClientAddress(ClientAddress) {}
 
   int                _nRcvdByServer;
   int                _nSentByClient;
   struct timeval     _tmRcv;
   struct timeval     _tmSent;
-  struct timeval     _tmHwRcv;
+  struct timeval     _tmHwRcv_TAI;
   struct sockaddr_in _ClientAddress;
 };
 
@@ -62,11 +62,16 @@ public:
   void AddLogger   (tSampleLogger *pLogger);
   void RemoveLogger(tSampleLogger *pLoggerToRemove);
 
+  long int TAIOffset();
+  struct timeval TAI_to_UTC(const struct timeval &tv_TAI);
+
 protected:
   void SamplePrintingEndlessLoop();
 
   std::thread                _PrintingThread;
   std::list<tSampleLogger *> _SampleLoggerList;
+
+  struct timeval             _tvTaiOffset;
 };
 
 
@@ -99,7 +104,7 @@ public:
   void StartLoggerThread();
 
   void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
-                struct timeval &tmHwRcv, struct sockaddr_in &ClientAddress);
+                struct timeval &tmHwRcv_TAI, struct sockaddr_in &ClientAddress);
 
 protected:
   #ifdef  USE_BOOST_CIRCULAR_BUFFER

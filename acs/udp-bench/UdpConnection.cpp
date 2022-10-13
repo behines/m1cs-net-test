@@ -34,6 +34,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <linux/net_tstamp.h>
+#include <linux/time_types.h>
 
 #include <string>
 #include <cstring>
@@ -271,7 +272,7 @@ tUdpServer::tUdpServer(int iServerPortNum)
   // Configure the socket to support hardware timestamping
   int flags = SOF_TIMESTAMPING_RX_HARDWARE |
               SOF_TIMESTAMPING_RAW_HARDWARE;
-  // SO_TIMESTAMPING_NEW guarantees that we get 64-bit timestamps
+  // SO_TIMESTAMPING_NEW guarantees that we get 64-bit timestamps but returns a __kernel_timespec
   if (setsockopt(_sockRx, SOL_SOCKET, SO_TIMESTAMPING_NEW, &flags, sizeof(flags)) < 0) {
     throw tUdpConnectionException("Error configuring UDP receive socket hardware timestamp support");
   }
@@ -385,15 +386,18 @@ ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_
 struct timeval tUdpServer::GetHardwareTimestampOfLastMessage()
 {
   struct cmsghdr *pCmsgHdr;
-  struct timespec *ts = NULL;
+  struct __kernel_timespec *kts = NULL;  // This is what SO_TIMESTAMPING_NEW returns
+  //struct timespec *ts = NULL;
   struct timeval   tv;
 
   // See "man CMSG_FIRSTHDR" for details on these macros
   for (pCmsgHdr = CMSG_FIRSTHDR(&_MsgHdr); pCmsgHdr != NULL; pCmsgHdr = CMSG_NXTHDR(&_MsgHdr, pCmsgHdr))  {
     if (pCmsgHdr->cmsg_level == SOL_SOCKET && pCmsgHdr->cmsg_type == SO_TIMESTAMPING_NEW) { 
-        ts = (struct timespec *) CMSG_DATA(pCmsgHdr);
         // Hardware timestamps are passed in ts[2]
-        TIMESPEC_TO_TIMEVAL(&tv, &ts[2]);   // From sys/time.h.  See https://www.daemon-systems.org/man/TIMEVAL_TO_TIMESPEC.3.html for API
+        kts = (struct __kernel_timespec  *) CMSG_DATA(pCmsgHdr);   // for use with SO_TIMESTAMPING_NEW
+        tv = { kts[2].tv_sec, kts[2].tv_nsec/1000 };
+        //ts = (struct timespec  *) CMSG_DATA(pCmsgHdr);           // for use with SO_TIMESTAMPING
+        //TIMESPEC_TO_TIMEVAL(&tv, &ts[2]);   // From sys/time.h.  See https://www.daemon-systems.org/man/TIMEVAL_TO_TIMESPEC.3.html for API
         return tv;
     }
   }

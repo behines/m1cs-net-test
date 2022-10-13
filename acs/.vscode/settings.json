@@ -1,4 +1,6 @@
 {
+  "C_Cpp.default.cppStandard": "c++20",
+  "C_Cpp.default.cStandard": "c17",
   "SEGA1": {
     /* Site-specific Settings */
     "SDK_PATH":"/opt/ti/arago-2021.09-aarch64",
