@@ -122,7 +122,7 @@ protected:
   // Stuff for timestamping support
   struct iovec       _iov;
   struct msghdr      _MsgHdr;
-  //char               _MsgControlBuf[UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN];
+  char               _MsgControlBuf[UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN];
   //struct cmsghdr     _MsgControlBuf;
 
 };

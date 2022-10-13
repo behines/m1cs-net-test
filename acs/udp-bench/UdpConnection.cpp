@@ -359,7 +359,7 @@ tUdpServer::~tUdpServer()
 ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_in *pClientAddress)
 {
   ssize_t n = 0;
-  struct cmsghdr     _MsgControlBuf;
+  //struct cmsghdr     _MsgControlBuf;
   //socklen_t sz = sizeof(*pClientAddress);
 
   // n = recvfrom(_sockRx, buf, szBufSize, 0, (struct sockaddr *) pClientAddress, &sz);
@@ -373,7 +373,7 @@ ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_
   _iov.iov_len        = szBufSize;
   _MsgHdr.msg_name    = pClientAddress;
   _MsgHdr.msg_namelen = sizeof(*pClientAddress);
-  _MsgHdr.msg_control    = &_MsgControlBuf;
+  _MsgHdr.msg_control    = _MsgControlBuf;
   _MsgHdr.msg_controllen = sizeof(_MsgControlBuf); //UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
 
   n = recvmsg(_sockRx, &_MsgHdr, 0);
