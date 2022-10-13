@@ -73,7 +73,7 @@
     /* Project Settings */
     "PROGRAM":"rtc_udp",
     /* "PROGRAM_ARGS":"-s app_srv19 -h 10.4.0.3", */
-    "PROGRAM_ARGS":"-t 90 -p 30000 30455",
+    "PROGRAM_ARGS":"-t 90 -p 30000 30003",
     "LOCAL_BIN_DIR":"../bin/",
   },
 

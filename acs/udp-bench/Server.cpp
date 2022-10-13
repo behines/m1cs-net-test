@@ -101,10 +101,11 @@ tSampleLogger::~tSampleLogger()
 *    
 */
 
-void tSampleLogger::LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, struct sockaddr_in &ClientAddress)
+void tSampleLogger::LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, 
+                              struct timeval &tmHwRcv, struct sockaddr_in &ClientAddress)
 {
   std::lock_guard<std::mutex> cvLock(_SampleQueueMutex);
-  _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, ClientAddress));
+  _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, tmHwRcv, ClientAddress));
   // When using boost, we can query how full the buffer is and wait until it is half full before printing anything, to reduce thread thrashing
 
   #if 0
@@ -151,7 +152,7 @@ void tSampleLogger::DrainSampleQueue()
 
 void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 {
-  struct timeval tmDiff;
+  struct timeval tmDiff, tmRcvKernelLatency;
   char sHostIpString[40];
   double dLatencyMicroseconds;
 
@@ -161,7 +162,9 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 
   timersub(&Sample._tmRcv, &Sample._tmSent, &tmDiff);
 
-  PrintSample(sHostIpString, Sample._tmRcv, Sample._tmSent, tmDiff,
+  timersub(&Sample._tmRcv, &Sample._tmHwRcv, &tmRcvKernelLatency);
+
+  PrintSample(sHostIpString, Sample._tmRcv, Sample._tmSent, tmDiff, Sample._tmHwRcv, tmRcvKernelLatency,
               Sample._nRcvdByServer, Sample._nSentByClient);
 
   dLatencyMicroseconds = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
@@ -175,15 +178,18 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 *    
 */
 
-void tSampleLogger:: PrintSample(const char *sHostIpString, const struct timeval &tmSent, 
-                                 const struct timeval &tmReceived, const struct timeval &tmDiff, 
-                                 int nReceivedByServer, int nSentByClient)
+void tSampleLogger::PrintSample(const char *sHostIpString, const struct timeval &tmSent, 
+                                const struct timeval &tmReceived, const struct timeval &tmDiff, 
+                                const struct timeval &tmHwReceived, const struct timeval &tmRcvKernelLatency,
+                                int nReceivedByServer, int nSentByClient)
 {
-  (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
+  (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  HwRcvd: %02ld.%06ld  RcvKLat: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
                 sHostIpString, _iPortNum,
-                tmSent.tv_sec,      tmSent.tv_usec, 
-                tmReceived .tv_sec, tmReceived .tv_usec,
-                tmDiff.tv_sec,      tmDiff.tv_usec, 
+                tmSent.tv_sec,             tmSent.tv_usec, 
+                tmReceived .tv_sec,        tmReceived .tv_usec,
+                tmDiff.tv_sec,             tmDiff.tv_usec, 
+                tmHwReceived.tv_sec,       tmHwReceived.tv_usec, 
+                tmRcvKernelLatency.tv_sec, tmRcvKernelLatency.tv_usec,
                 ((nReceivedByServer-1)%50)+1,
                 ((nSentByClient    -1)%50)+1);
 }
@@ -317,7 +323,7 @@ int tServer::ProcessIncomingMessages()
   ssize_t  len;;
   char buf[MAX_MESSAGE_SIZE];
   int            nSent;
-  struct timeval tmRcv, tmSent;
+  struct timeval tmRcv, tmSent, tmHwRcv;
   struct sockaddr_in ClientAddress;
 
   while (!_bExit) {  // Flag from base tPThread class
@@ -332,7 +338,10 @@ int tServer::ProcessIncomingMessages()
     tmSent = ((DataHdr *) buf)->time;
     nSent  = ((DataHdr *) buf)->hdr.msgId;
 
-    _SampleLogger.LogSample(++_nReceived, nSent, tmRcv, tmSent, ClientAddress);
+    // Retrieve the hardware timestamp
+    tmHwRcv = _UdpServer.GetHardwareTimestampOfLastMessage();
+
+    _SampleLogger.LogSample(++_nReceived, nSent, tmRcv, tmSent, tmHwRcv, ClientAddress);
   }
 
   return 0;

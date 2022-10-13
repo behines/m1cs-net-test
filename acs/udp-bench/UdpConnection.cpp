@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <linux/net_tstamp.h>
 
 #include <string>
@@ -285,22 +286,14 @@ tUdpServer::tUdpServer(int iServerPortNum)
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
 
-#if 0
   // Initialize message header structure for use with recvmsg()
   memset(&_MsgHdr,  0, sizeof(_MsgHdr));
   memset(&_iov,     0, sizeof(_iov));
   _MsgHdr.msg_iov        = &_iov;  // _iov will itself be populated in the call to ReceiveMessage()
   _MsgHdr.msg_iovlen     = 1;
-  //_MsgHdr.msg_name       = &_SiMe;
-  //_MsgHdr.msg_namelen    = sizeof(_SiMe);
+  _MsgHdr.msg_namelen    = sizeof(struct sockaddr_in);
   _MsgHdr.msg_control    = _MsgControlBuf;
-  _MsgHdr.msg_controllen = UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
-  #endif
-  // Initialize message header structure for use with recvmsg()
-  memset(&_MsgHdr,  0, sizeof(_MsgHdr));
-  memset(&_iov,     0, sizeof(_iov));
-  _MsgHdr.msg_iov        = &_iov;  // _iov will itself be populated in the call to ReceiveMessage()
-  _MsgHdr.msg_iovlen     = 1;
+  _MsgHdr.msg_controllen = sizeof(_MsgControlBuf);
 }
 
 
@@ -322,7 +315,9 @@ tUdpServer::tUdpServer(tUdpServer &&other) noexcept :
   _iov              (other._iov),
   _MsgHdr           (other._MsgHdr)
 {
-  _MsgHdr.msg_iov = &_iov;
+  // Fix up the pointers in _MsgHdr
+  _MsgHdr.msg_iov     = &_iov;
+  _MsgHdr.msg_control = _MsgControlBuf;
   other._sockRx = 0;  // Prevent the old object from closing the socket when it dies
 }
 
@@ -358,23 +353,14 @@ tUdpServer::~tUdpServer()
 
 ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_in *pClientAddress)
 {
-  ssize_t n = 0;
-  //struct cmsghdr     _MsgControlBuf;
-  //socklen_t sz = sizeof(*pClientAddress);
+  ssize_t n;
 
   // n = recvfrom(_sockRx, buf, szBufSize, 0, (struct sockaddr *) pClientAddress, &sz);
-
-  //memset(&_MsgHdr,  0, sizeof(_MsgHdr));
-  //memset(&_iov,     0, sizeof(_iov));
-  //_MsgHdr = _MsgHdr;
 
   // For sample recvmsg code that retrieves timestamps, see https://github.com/Xilinx-CNS/onload/blob/master/src/tests/onload/hwtimestamping/rx_timestamping.c
   _iov.iov_base       = buf;
   _iov.iov_len        = szBufSize;
   _MsgHdr.msg_name    = pClientAddress;
-  _MsgHdr.msg_namelen = sizeof(*pClientAddress);
-  _MsgHdr.msg_control    = _MsgControlBuf;
-  _MsgHdr.msg_controllen = sizeof(_MsgControlBuf); //UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
 
   n = recvmsg(_sockRx, &_MsgHdr, 0);
 
@@ -396,17 +382,19 @@ ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_
 *   If not NULL, *pClientAddress is populated with info on the source of the packet
 */
 
-struct timespec tUdpServer::GetHardwareTimestampOfLastMessage()
+struct timeval tUdpServer::GetHardwareTimestampOfLastMessage()
 {
   struct cmsghdr *pCmsgHdr;
   struct timespec *ts = NULL;
+  struct timeval   tv;
 
   // See "man CMSG_FIRSTHDR" for details on these macros
   for (pCmsgHdr = CMSG_FIRSTHDR(&_MsgHdr); pCmsgHdr != NULL; pCmsgHdr = CMSG_NXTHDR(&_MsgHdr, pCmsgHdr))  {
-    if (pCmsgHdr->cmsg_level == SOL_SOCKET && pCmsgHdr->cmsg_type == SCM_TIMESTAMPING) {  // Note that SCM_TIMESTAMPING and SO_TIMESTAMPING are equivalent
+    if (pCmsgHdr->cmsg_level == SOL_SOCKET && pCmsgHdr->cmsg_type == SO_TIMESTAMPING_NEW) { 
         ts = (struct timespec *) CMSG_DATA(pCmsgHdr);
         // Hardware timestamps are passed in ts[2]
-        return ts[2];
+        TIMESPEC_TO_TIMEVAL(&tv, &ts[2]);   // From sys/time.h.  See https://www.daemon-systems.org/man/TIMEVAL_TO_TIMESPEC.3.html for API
+        return tv;
     }
   }
   return {0,0};

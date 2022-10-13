@@ -108,7 +108,7 @@ public:
   virtual ~tUdpServer();
 
   ssize_t ReceiveMessage(void *buf, size_t iBufSize, struct sockaddr_in *pClientAddress);
-  struct timespec GetHardwareTimestampOfLastMessage();
+  struct timeval GetHardwareTimestampOfLastMessage();
 
   bool IsInitialized()  { return _bInitSuccessfully; }
 
@@ -122,9 +122,7 @@ protected:
   // Stuff for timestamping support
   struct iovec       _iov;
   struct msghdr      _MsgHdr;
-  char               _MsgControlBuf[UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN];
-  //struct cmsghdr     _MsgControlBuf;
-
+  uint8_t            _MsgControlBuf[UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN];
 };
 
 

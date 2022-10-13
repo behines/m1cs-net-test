@@ -35,13 +35,16 @@ class tSampleLogger;
 
 struct tLatencySample {
   tLatencySample() {}
-  tLatencySample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, struct sockaddr_in &ClientAddress) :
-    _nRcvdByServer(nRcvdByServer), _nSentByClient(nSentByClient), _tmRcv(tmRcv), _tmSent(tmSent), _ClientAddress(ClientAddress) {}
+  tLatencySample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, 
+                 struct timeval &tmHwRcv, struct sockaddr_in &ClientAddress) :
+    _nRcvdByServer(nRcvdByServer), _nSentByClient(nSentByClient), _tmRcv(tmRcv), _tmSent(tmSent), 
+    _tmHwRcv(tmHwRcv), _ClientAddress(ClientAddress) {}
 
   int                _nRcvdByServer;
   int                _nSentByClient;
   struct timeval     _tmRcv;
   struct timeval     _tmSent;
+  struct timeval     _tmHwRcv;
   struct sockaddr_in _ClientAddress;
 };
 
@@ -88,13 +91,15 @@ public:
   void ProcessSample(const tLatencySample &Sample);
   void PrintSample(const char *sHostIpString, const struct timeval &tmSent,
                    const struct timeval &tmReceived, const struct timeval &tmDiff,
+                   const struct timeval &tmHwReceived, const struct timeval &tmRcvKernelLatency,
                    int nReceivedByServer, int nSentByClient);
 
   ~tSampleLogger();
 
   void StartLoggerThread();
 
-  void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, struct sockaddr_in &ClientAddr);
+  void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
+                struct timeval &tmHwRcv, struct sockaddr_in &ClientAddress);
 
 protected:
   #ifdef  USE_BOOST_CIRCULAR_BUFFER
