@@ -296,7 +296,11 @@ tUdpServer::tUdpServer(int iServerPortNum)
   _MsgHdr.msg_control    = _MsgControlBuf;
   _MsgHdr.msg_controllen = UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
   #endif
-
+  // Initialize message header structure for use with recvmsg()
+  memset(&_MsgHdr,  0, sizeof(_MsgHdr));
+  memset(&_iov,     0, sizeof(_iov));
+  _MsgHdr.msg_iov        = &_iov;  // _iov will itself be populated in the call to ReceiveMessage()
+  _MsgHdr.msg_iovlen     = 1;
 }
 
 
@@ -314,8 +318,11 @@ tUdpServer::tUdpServer(tUdpServer &&other) noexcept :
   _sockRx           (other._sockRx),
   _SiMe             (other._SiMe),
   _ui8MsgIndex      (other._ui8MsgIndex),
-  _bInitSuccessfully(other._bInitSuccessfully)
+  _bInitSuccessfully(other._bInitSuccessfully),
+  _iov              (other._iov),
+  _MsgHdr           (other._MsgHdr)
 {
+  _MsgHdr.msg_iov = &_iov;
   other._sockRx = 0;  // Prevent the old object from closing the socket when it dies
 }
 
@@ -357,22 +364,17 @@ ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_
 
   // n = recvfrom(_sockRx, buf, szBufSize, 0, (struct sockaddr *) pClientAddress, &sz);
 
-  // Initialize message header structure for use with recvmsg()
-  memset(&_MsgHdr,  0, sizeof(_MsgHdr));
-  memset(&_iov,     0, sizeof(_iov));
-  _MsgHdr.msg_iov        = _iov;  // _iov will itself be populated in the call to ReceiveMessage()
-  _MsgHdr.msg_iovlen     = 1;
-  //_MsgHdr.msg_name       = &_SiMe;
-  //_MsgHdr.msg_namelen    = sizeof(_SiMe);
-  _MsgHdr.msg_control    = &_MsgControlBuf;
-  _MsgHdr.msg_controllen = sizeof(_MsgControlBuf); //UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
+  //memset(&_MsgHdr,  0, sizeof(_MsgHdr));
+  //memset(&_iov,     0, sizeof(_iov));
+  //_MsgHdr = _MsgHdr;
 
   // For sample recvmsg code that retrieves timestamps, see https://github.com/Xilinx-CNS/onload/blob/master/src/tests/onload/hwtimestamping/rx_timestamping.c
-  _iov[0].iov_base       = buf;
-  _iov[0].iov_len        = szBufSize;
+  _iov.iov_base       = buf;
+  _iov.iov_len        = szBufSize;
   _MsgHdr.msg_name    = pClientAddress;
   _MsgHdr.msg_namelen = sizeof(*pClientAddress);
-
+  _MsgHdr.msg_control    = &_MsgControlBuf;
+  _MsgHdr.msg_controllen = sizeof(_MsgControlBuf); //UDPCONNECTION_RECEIVE_MESSAGE_CONTROL_BUF_LEN;
 
   n = recvmsg(_sockRx, &_MsgHdr, 0);
 
