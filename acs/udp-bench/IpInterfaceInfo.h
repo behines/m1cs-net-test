@@ -47,7 +47,9 @@ public:
   tIpInterfaceInfo();
 
   std::string Ipv4BinaryAddressToDeviceName(uint32_t Ipv4BinaryAddress);
-  void ConfigureDeviceForHardwareTimestamping(const std::string &sDeviceName, int iSocketBoundToDevice);
+  void ConfigureDeviceForHardwareTimestamping(const std::string &sDeviceName);
+
+  void ConfigureHardwareTimestampingOnAllEthernetInterfaces();
 
 protected:
   std::map<uint32_t,std::string> _IpV4BinaryAddressToDeviceName;

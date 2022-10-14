@@ -23,6 +23,7 @@
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <string.h>
+#include <unistd.h>
 //#include <stdio.h>
 //#include <stdlib.h>
 //#include <unistd.h>
@@ -110,9 +111,15 @@ std::string tIpInterfaceInfo::Ipv4BinaryAddressToDeviceName(uint32_t Ipv4BinaryA
 * This is the equivalent of calling hwstamp_ctl from the command line
 */
  
-void tIpInterfaceInfo::ConfigureDeviceForHardwareTimestamping(const std::string &sDeviceName, int iSocketBoundToDevice)
+void tIpInterfaceInfo::ConfigureDeviceForHardwareTimestamping(const std::string &sDeviceName)
 {
   bool               bConfigured;
+
+  int	DummySocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (DummySocket < 0) {
+		throw tIpInterfaceInfoException(string("ConfigureDeviceForHardwareTimestamping: Unable to create dummy socket: ")
+                                     + std::to_string(errno) + " (" + strerror(errno) + ")" );
+	}
 
   try {
     bConfigured = _bConfiguredForHardwareTimestamping.at(sDeviceName);
@@ -141,11 +148,12 @@ void tIpInterfaceInfo::ConfigureDeviceForHardwareTimestamping(const std::string 
     hwtstamp.ifr_data = (void *) &HwTstampConfig;
 
     // And execute it
-    if (ioctl(iSocketBoundToDevice, SIOCSHWTSTAMP, &hwtstamp) < 0) {
+    if (ioctl(DummySocket, SIOCSHWTSTAMP, &hwtstamp) < 0) {
       if (errno == EINVAL || errno == ENOTSUP) {
         throw tIpInterfaceInfoException(string(" Unable to enable hardware timestamping on device ") + sDeviceName);
       }
-      else cout << "IpInterfaceInfo: Unable to enable hardware timestamping on device " << sDeviceName << ": " << strerror(errno) << endl;
+      else cout << "IpInterfaceInfo: Unable to enable hardware timestamping on device " << sDeviceName << ": " 
+                << errno << " (" << strerror(errno) << ")" << endl;
     }
     else {
       cout << "Set HWTSTAMP on " << sDeviceName << endl;
@@ -153,5 +161,26 @@ void tIpInterfaceInfo::ConfigureDeviceForHardwareTimestamping(const std::string 
     
     // Mark as configured
     _bConfiguredForHardwareTimestamping[sDeviceName] = true;
+  }
+
+  close(DummySocket);
+}
+
+
+/*********************************************
+* tIpInterfaceInfo::ConfigureHardwareTimestampingOnAllEthernetInterfaces 
+*
+* 
+*/
+ 
+void tIpInterfaceInfo::ConfigureHardwareTimestampingOnAllEthernetInterfaces()
+{
+  for (auto const & MappedPair : _IpV4BinaryAddressToDeviceName) {
+    // The string is the second part of the pair
+    const std::string &sDeviceName = MappedPair.second;
+    // If the device name starts with 'e', then we assume that it's an ethernet device
+    if (sDeviceName.length() > 0  && sDeviceName[0] == 'e') {
+      ConfigureDeviceForHardwareTimestamping(sDeviceName);
+    }
   }
 }

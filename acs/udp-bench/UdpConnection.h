@@ -71,10 +71,12 @@ public:
 
   const std::string &NetworkDeviceName() { return _sDeviceName; }
 
+  static tIpInterfaceInfo _IpInterfaceInfo;
+
 protected:
   void _SaveHardwareTimestampOfMessage();
 
-  static tIpInterfaceInfo _IpInterfaceInfo;
+
   int                     _sockTx;
   struct sockaddr_in      _SiHostTx;
 
@@ -120,6 +122,7 @@ protected:
 
   uint8_t            _ui8MsgIndex;
   bool               _bInitSuccessfully;
+  std::string        _sDeviceName;       // Which network interface we are on
 
   // Stuff for timestamping support
   struct iovec       _iov;

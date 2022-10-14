@@ -140,7 +140,7 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
       throw tUdpConnectionException("Error binding socket to device");
     }
 
-    _IpInterfaceInfo.ConfigureDeviceForHardwareTimestamping(_sDeviceName, _sockTx);
+    _IpInterfaceInfo.ConfigureDeviceForHardwareTimestamping(_sDeviceName);
 
     socklen_t socklen = sizeof(siClientTxBound);
 
@@ -369,6 +369,10 @@ tUdpServer::tUdpServer(int iServerPortNum)
   if (bind(_sockRx, (struct sockaddr *) &_SiMe, sizeof(_SiMe)) < 0) {
 		throw tUdpConnectionException("Error binding UDP receive socket");
 	}
+
+  // Borrow a static method from tUdpClient for this.  Perhaps should move this elsewhere
+  // someday, but it's fine for now.
+  tUdpClient::_IpInterfaceInfo.ConfigureHardwareTimestampingOnAllEthernetInterfaces();
 
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
