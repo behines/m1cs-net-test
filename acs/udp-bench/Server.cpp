@@ -103,10 +103,10 @@ tSampleLogger::~tSampleLogger()
 */
 
 void tSampleLogger::LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, 
-                              struct timeval &tmHwRcv_TAI, struct sockaddr_in &ClientAddress)
+                              struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress)
 {
   std::lock_guard<std::mutex> cvLock(_SampleQueueMutex);
-  _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, tmHwRcv_TAI, ClientAddress));
+  _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, tmHwRcv_TAI, tmHwSentPrevious_TAI, ClientAddress));
   // When using boost, we can query how full the buffer is and wait until it is half full before printing anything, to reduce thread thrashing
 
   #if 0
@@ -153,7 +153,7 @@ void tSampleLogger::DrainSampleQueue()
 
 void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 {
-  struct timeval tmDiff, tmRcvKernelLatency, tmHwRcvUTC;
+  struct timeval tmDiff, tmRcvKernelLatency, tmHwRcvUTC, tmHwPreviousSentUTC;
   char sHostIpString[40];
   double dLatencyMicroseconds;
 
@@ -163,12 +163,13 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 
   timersub(&Sample._tmRcv, &Sample._tmSent, &tmDiff);
 
-  // The hardware timestamp is in TAI instead of UTC.  Convert
-  tmHwRcvUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwRcv_TAI);
+  // The hardware timestamps are in TAI instead of UTC.  Convert.
+  tmHwRcvUTC          = _SamplePrinter.TAI_to_UTC(Sample._tmHwRcv_TAI);
+  tmHwPreviousSentUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwSentPrevious_TAI);
 
   timersub(&Sample._tmRcv, &tmHwRcvUTC, &tmRcvKernelLatency);
 
-  PrintSample(sHostIpString, Sample._tmSent, Sample._tmRcv, tmDiff, tmHwRcvUTC, tmRcvKernelLatency,
+  PrintSample(sHostIpString, Sample._tmSent, Sample._tmRcv, tmDiff, tmHwRcvUTC, tmRcvKernelLatency, tmHwPreviousSentUTC,
               Sample._nRcvdByServer, Sample._nSentByClient);
 
   dLatencyMicroseconds = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
@@ -185,15 +186,17 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 void tSampleLogger::PrintSample(const char *sHostIpString, const struct timeval &tmSent, 
                                 const struct timeval &tmReceived, const struct timeval &tmDiff, 
                                 const struct timeval &tmHwReceived, const struct timeval &tmRcvKernelLatency,
+                                const struct timeval &tmHwSentPrevious,
                                 int nReceivedByServer, int nSentByClient)
 {
-  (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  HwRcvd: %02ld.%06ld  RcvKLat: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
+  (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  HwRcvd: %02ld.%06ld  RcvKLat: %02ld.%06ld  PrvSent: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
                 sHostIpString, _iPortNum,
                 tmSent.tv_sec,             tmSent.tv_usec, 
                 tmReceived .tv_sec,        tmReceived .tv_usec,
                 tmDiff.tv_sec,             tmDiff.tv_usec, 
                 tmHwReceived.tv_sec,       tmHwReceived.tv_usec, 
                 tmRcvKernelLatency.tv_sec, tmRcvKernelLatency.tv_usec,
+                tmHwSentPrevious.tv_sec,   tmHwSentPrevious.tv_usec,
                 ((nReceivedByServer-1)%50)+1,
                 ((nSentByClient    -1)%50)+1);
 }
@@ -348,7 +351,7 @@ int tServer::ProcessIncomingMessages()
   ssize_t  len;;
   char buf[MAX_MESSAGE_SIZE];
   int            nSent;
-  struct timeval tmRcv, tmSent, tmHwRcv_TAI;
+  struct timeval tmRcv, tmSent, tmHwRcv_TAI, tmHwSentPrevious_TAI;
   struct sockaddr_in ClientAddress;
 
   while (!_bExit) {  // Flag from base tPThread class
@@ -360,13 +363,22 @@ int tServer::ProcessIncomingMessages()
     }
 
     gettimeofday(&tmRcv, NULL);
-    tmSent = ((DataHdr *) buf)->time;
-    nSent  = ((DataHdr *) buf)->hdr.msgId;
+
+    // Unpack the payload
+    const SegRtDataMsg *pMsg = (const SegRtDataMsg *) buf;
+
+    tmSent                 =                        pMsg->hdr.time;
+    nSent                  =                        pMsg->hdr.hdr.msgId;
+    // Disable GCC warning about unaligned pointer for this pointer assignment
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+      tmHwSentPrevious_TAI = * (struct timeval *) &(pMsg->data[0]);
+    #pragma GCC diagnostic pop
 
     // Retrieve the hardware timestamp
     tmHwRcv_TAI = _UdpServer.GetHardwareTimestampOfLastMessage();
 
-    _SampleLogger.LogSample(++_nReceived, nSent, tmRcv, tmSent, tmHwRcv_TAI, ClientAddress);
+    _SampleLogger.LogSample(++_nReceived, nSent, tmRcv, tmSent, tmHwRcv_TAI, tmHwSentPrevious_TAI, ClientAddress);
   }
 
   return 0;

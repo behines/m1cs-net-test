@@ -3,12 +3,8 @@
 * Obviously this class does not implement a "connection", but it acts like
 * one.
 *
-* At the moment, only message sending is implemented, but the receive socket
-* does get created and bound.  It will be a trivial matter to implement 
-* receiving as well.  
-*
-* Also at the moment, both sockets are configured as broadcast - any IP, any
-* port, so no specific IP configuration info is needed.
+* For an example that covers everything timestamping, see 
+* https://elixir.bootlin.com/linux/v4.2/source/Documentation/networking/timestamping/timestamping.c
 *
 **
 ***
@@ -35,6 +31,7 @@
 #include <sys/time.h>
 #include <linux/net_tstamp.h>
 #include <linux/time_types.h>
+#include <poll.h>
 
 #include <string>
 #include <cstring>
@@ -127,13 +124,24 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
       throw tUdpConnectionException("Error binding UDP transmit socket");
     }
 
+    // Configure the socket to support hardware timestamping
+    int flags = SOF_TIMESTAMPING_TX_HARDWARE |
+                SOF_TIMESTAMPING_RAW_HARDWARE;
+    // SO_TIMESTAMPING_NEW guarantees that we get 64-bit timestamps but returns a __kernel_timespec
+    if (setsockopt(_sockTx, SOL_SOCKET, SO_TIMESTAMPING_NEW, &flags, sizeof(flags)) < 0) {
+      throw tUdpConnectionException("Error configuring UDP transmit socket hardware timestamp support");
+    }
+
+    // The following method will also ensure that the device is configured for hardware timestamping
     _sDeviceName = _IpInterfaceInfo.Ipv4BinaryAddressToDeviceName(ipClientAddressInBinary);
     socklen_t slen = _sDeviceName.length();
 
     if (setsockopt(_sockTx, SOL_SOCKET, SO_BINDTODEVICE, (void *) _sDeviceName.c_str(), slen) == -1) {
       throw tUdpConnectionException("Error binding socket to device");
     }
-   
+
+    _IpInterfaceInfo.ConfigureDeviceForHardwareTimestamping(_sDeviceName, _sockTx);
+
     socklen_t socklen = sizeof(siClientTxBound);
 
     if (getsockname(_sockTx, (struct sockaddr *) &siClientTxBound, &socklen) < 0) {
@@ -154,6 +162,15 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
 
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
+
+  // Initialize message header structure for use with recvmsg() when reading back the hardware timestamp
+  memset(&_MsgHdr,  0, sizeof(_MsgHdr));
+  _MsgHdr.msg_iov        = NULL;  // _iov will itself be populated in the call to ReceiveMessage()
+  _MsgHdr.msg_iovlen     = 0;
+  _MsgHdr.msg_name       = NULL;
+  _MsgHdr.msg_namelen    = 0;
+  _MsgHdr.msg_control    = _MsgControlBuf;
+  _MsgHdr.msg_controllen = sizeof(_MsgControlBuf);
 }
 
 
@@ -172,8 +189,11 @@ tUdpClient::tUdpClient(tUdpClient &&other) noexcept :
   _SiHostTx         (other._SiHostTx),
   _ui8MsgIndex      (other._ui8MsgIndex),
   _bInitSuccessfully(other._bInitSuccessfully),
-  _sDeviceName      (other._sDeviceName)
+  _sDeviceName      (other._sDeviceName),
+  _MsgHdr           (other._MsgHdr)
 {
+  // Fix up the pointers in _MsgHdr
+  _MsgHdr.msg_control = _MsgControlBuf;
   other._sockTx = 0;  // Prevent the old object from closing the socket when it dies
 }
 
@@ -194,8 +214,8 @@ tUdpClient::tUdpClient(tUdpClient &&other) noexcept :
 
 void tUdpClient::SendMessage(uint8_t *pMessage, int iNumBytes)
 {
+  ssize_t n;
   int retval;
-  //char sMsg[100];
 
   assert(pMessage != nullptr);
   assert(iNumBytes > 0);
@@ -204,8 +224,72 @@ void tUdpClient::SendMessage(uint8_t *pMessage, int iNumBytes)
   if (retval == -1) {
     throw tUdpConnectionException(std::string("SendMessage: ") + strerror(errno));
   }
+
+  // We want to read back the timestamp info, but we don't need to do that right away.  Let all the
+  // other sender threads run first.
+  pthread_yield();
+
+  // For sample recvmsg code that retrieves timestamps, see https://github.com/Xilinx-CNS/onload/blob/master/src/tests/onload/hwtimestamping/rx_timestamping.c
+  // There is no additional config to do since we aren't actually receiving data, just control messages.
+
+  // Note, from section 2.1.1.5 at https://docs.kernel.org/networking/timestamping.html#scm-timestamping-records, that 
+  // reading from the error queue is always a non-blocking operation. 
+  // To block waiting on a timestamp, use poll or select. poll() will set the POLLERR flag if data is ready
+  // in the error queue.
+
+  #if 0
+    fd_set errorfs;
+    FD_ZERO(&errorfs);
+    FD_SET(_sockTx, &errorfs);
+    if (select(_sockTx + 1, NULL, NULL, &errorfs, NULL) == -1) {
+      throw tUdpConnectionException(std::string("SendMessage errqueue readback select: ") + strerror(errno));
+    }
+    if (FD_ISSET(_sockTx, &errorfs))	cout << "has error" << endl;
+    else                              cout << "no error" << endl;
+  #endif
+
+  // The kernel docs say that you don't need to set POLLERR in the Requested Events flag set.
+  // But I was having trouble so decided to try it anyway.
+  struct pollfd PollFds[] = { { _sockTx, POLLERR , 0 } };
+  if (poll(PollFds, 1, -1) == -1) {
+    throw tUdpConnectionException(std::string("SendMessage errqueue poll: ") + strerror(errno));
+  }
+
+  n = recvmsg(_sockTx, &_MsgHdr, MSG_ERRQUEUE);
+  if (n < 0) {
+	  throw tUdpConnectionException(std::string("SendMessage errqueue readback: ") + strerror(errno));
+  }
+
+  _SaveHardwareTimestampOfMessage();
 }
 
+
+/*********************************************
+* tUdpClient::GetHardwareTimestampOfLastMessage
+*
+* SIDE EFFECTS:
+*
+* RETURNS:
+*   
+*/
+
+void tUdpClient::_SaveHardwareTimestampOfMessage()
+{
+  struct cmsghdr *pCmsgHdr;
+  struct __kernel_timespec *kts = NULL;  // This is what SO_TIMESTAMPING_NEW returns
+  //struct timespec *ts = NULL;
+
+  // See "man CMSG_FIRSTHDR" for details on these macros
+  for (pCmsgHdr = CMSG_FIRSTHDR(&_MsgHdr); pCmsgHdr != NULL; pCmsgHdr = CMSG_NXTHDR(&_MsgHdr, pCmsgHdr))  {
+    if (pCmsgHdr->cmsg_level == SOL_SOCKET && pCmsgHdr->cmsg_type == SO_TIMESTAMPING_NEW) { 
+        // Hardware timestamps are passed in ts[2]
+        kts = (struct __kernel_timespec  *) CMSG_DATA(pCmsgHdr);   // for use with SO_TIMESTAMPING_NEW
+        _tvTimestampOfLastMessage = { kts[2].tv_sec, kts[2].tv_nsec/1000 };
+        //ts = (struct timespec  *) CMSG_DATA(pCmsgHdr);           // for use with SO_TIMESTAMPING
+        //TIMESPEC_TO_TIMEVAL(&tv, &ts[2]);   // From sys/time.h.  See https://www.daemon-systems.org/man/TIMEVAL_TO_TIMESPEC.3.html for API
+    }
+  }
+}
 
 
 /*********************************************
@@ -379,8 +463,7 @@ ssize_t tUdpServer::ReceiveMessage(void *buf, size_t szBufSize, struct sockaddr_
 * SIDE EFFECTS:
 *
 * RETURNS:
-*   ssize_t
-*   If not NULL, *pClientAddress is populated with info on the source of the packet
+*   
 */
 
 struct timeval tUdpServer::GetHardwareTimestampOfLastMessage()

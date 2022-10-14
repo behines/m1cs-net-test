@@ -82,6 +82,16 @@ int tClient::SendMessage()
     gettimeofday (&tm, NULL);
     seg_msg.hdr.time      = tm;
     seg_msg.hdr.hdr.msgId = ++_nSent;
+
+    // Copy the timestamp of the previously transmitted message into the data
+    // Disable GCC warning about unaligned pointer for this pointer assignment
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+      struct timeval *pLastTransmitTime = (struct timeval *) &seg_msg.data[0];
+    #pragma GCC diagnostic pop
+
+    *pLastTransmitTime = _UdpClient.GetHardwareTimestampOfLastMessage();
+
     _UdpClient.SendMessage((uint8_t *) &seg_msg, sizeof(seg_msg));
     // cout << "Send" << endl;
 
