@@ -27,6 +27,8 @@
 #define SAMPLE_QUEUE_BUFFER_DEPTH 
 #endif
 
+#define IP_ADDRESS_MAX_LEN_IN_CHARS (45)
+
 class tSampleLogger;
 
 /***************************
@@ -34,11 +36,14 @@ class tSampleLogger;
 */
 
 struct tLatencySample {
-  tLatencySample() {}
+  tLatencySample() {        _nRcvdByServer  = -1; }  // An uninitialized sample
+  bool   IsValid() { return _nRcvdByServer != -1; }
+
   tLatencySample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent, 
                  struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress) :
     _nRcvdByServer(nRcvdByServer), _nSentByClient(nSentByClient), _tmRcv(tmRcv), _tmSent(tmSent), 
     _tmHwRcv_TAI(tmHwRcv_TAI), _tmHwSentPrevious_TAI(tmHwSentPrevious_TAI), _ClientAddress(ClientAddress) {}
+
 
   int                _nRcvdByServer;
   int                _nSentByClient;
@@ -95,10 +100,10 @@ public:
   
   void DrainSampleQueue();
   void ProcessSample(const tLatencySample &Sample);
-  void PrintSample(const char *sHostIpString, const struct timeval &tmSent,
+  void PrintSample(const struct timeval &tmSent,
                    const struct timeval &tmReceived, const struct timeval &tmDiff,
                    const struct timeval &tmHwReceived, const struct timeval &tmRcvKernelLatency,
-                   const struct timeval &tmHwSentPrevious,
+                   const struct timeval &tmHwSent, const struct timeval &tmSendKernelLatency,
                    int nReceivedByServer, int nSentByClient);
 
   ~tSampleLogger();
@@ -119,6 +124,9 @@ protected:
   std::mutex              _SampleQueueMutex;
   // std::condition_variable _SampleQueueCondition;
   // std::thread _thread;
+
+  tLatencySample          _PreviousSample;
+  char                    _sSourceIpString[IP_ADDRESS_MAX_LEN_IN_CHARS];
 
   static tSamplePrinter   _SamplePrinter;
 

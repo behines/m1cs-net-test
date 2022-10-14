@@ -145,7 +145,16 @@ void tSampleLogger::DrainSampleQueue()
 
 
 /***************************************************
-* tSampleLogger::PopAndProcessSample
+* tSampleLogger::ProcessSample
+*
+* The slightly tricky thing here is that we don't get the timestamp
+* when the packet was sent until the *next* packet arrives.  So what
+* we do is implement a 1-packet delay in the output.
+*
+* To do that this routine has a one-sample memory.  It basically does
+* all of its calculations using the data from the previous sample,
+* *except* that for the sending hardware timestamp, it uses the
+* value from the newly arrived sample.
 *
 * INPUTS:
 *    
@@ -153,26 +162,38 @@ void tSampleLogger::DrainSampleQueue()
 
 void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 {
-  struct timeval tmDiff, tmRcvKernelLatency, tmHwRcvUTC, tmHwPreviousSentUTC;
-  char sHostIpString[40];
-  double dLatencyMicroseconds;
+  struct timeval tmDiff, tmRcvKernelLatency, tmSendKernelLatency, tmHwRcvUTC, tmHwSentUTC;
+  double dTotalLatencyMicroseconds, dRcvKernelLatencyMicroseconds, dSendKernelLatencyMicroseconds;
 
-  // Sample._ClientAddress is a sockaddr_in.  inet_ntop wants a struct in_addr, which is 
-  // the sin_addr member of the sockaddr_in
-  inet_ntop(AF_INET, &Sample._ClientAddress.sin_addr, sHostIpString, 40);
+  // The first time through, we won't have a valid previous sample, so bail out until next time.
+  if (_PreviousSample.IsValid()) {
 
-  timersub(&Sample._tmRcv, &Sample._tmSent, &tmDiff);
+    timersub(&_PreviousSample._tmRcv, &_PreviousSample._tmSent, &tmDiff);
 
-  // The hardware timestamps are in TAI instead of UTC.  Convert.
-  tmHwRcvUTC          = _SamplePrinter.TAI_to_UTC(Sample._tmHwRcv_TAI);
-  tmHwPreviousSentUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwSentPrevious_TAI);
+    // The hardware timestamps are in TAI instead of UTC.  Convert.
+    tmHwRcvUTC  = _SamplePrinter.TAI_to_UTC(_PreviousSample._tmHwRcv_TAI);
+    tmHwSentUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwSentPrevious_TAI);
 
-  timersub(&Sample._tmRcv, &tmHwRcvUTC, &tmRcvKernelLatency);
+    timersub(&_PreviousSample._tmRcv, &tmHwRcvUTC,              &tmRcvKernelLatency);
+    timersub(&tmHwSentUTC,            &_PreviousSample._tmSent, &tmSendKernelLatency);
 
-  PrintSample(sHostIpString, Sample._tmSent, Sample._tmRcv, tmDiff, tmHwRcvUTC, tmRcvKernelLatency, tmHwPreviousSentUTC,
-              Sample._nRcvdByServer, Sample._nSentByClient);
+    PrintSample(_PreviousSample._tmSent, _PreviousSample._tmRcv, tmDiff, 
+                tmHwRcvUTC, tmRcvKernelLatency, tmHwSentUTC, tmSendKernelLatency,
+                _PreviousSample._nRcvdByServer, _PreviousSample._nSentByClient);
 
-  dLatencyMicroseconds = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
+    dTotalLatencyMicroseconds      = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
+    //dSRcvKernelLatencyMicroseconds = ;
+    //dSendKernelLatencyMicroseconds = ;
+
+  }
+  else {
+    // First time through, let's get the host IP as a string
+    // Sample._ClientAddress is a sockaddr_in.  inet_ntop wants a struct in_addr, which is 
+    // the sin_addr member of the sockaddr_in
+    inet_ntop(AF_INET, &Sample._ClientAddress.sin_addr, _sSourceIpString, sizeof(_sSourceIpString));
+  }
+
+  _PreviousSample = Sample;
 }
 
 
@@ -183,20 +204,22 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 *    
 */
 
-void tSampleLogger::PrintSample(const char *sHostIpString, const struct timeval &tmSent, 
+void tSampleLogger::PrintSample(const struct timeval &tmSent, 
                                 const struct timeval &tmReceived, const struct timeval &tmDiff, 
                                 const struct timeval &tmHwReceived, const struct timeval &tmRcvKernelLatency,
-                                const struct timeval &tmHwSentPrevious,
+                                const struct timeval &tmHwSent, const struct timeval &tmSendKernelLatency,
                                 int nReceivedByServer, int nSentByClient)
 {
-  (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  HwRcvd: %02ld.%06ld  RcvKLat: %02ld.%06ld  PrvSent: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
-                sHostIpString, _iPortNum,
-                tmSent.tv_sec,             tmSent.tv_usec, 
-                tmReceived .tv_sec,        tmReceived .tv_usec,
-                tmDiff.tv_sec,             tmDiff.tv_usec, 
-                tmHwReceived.tv_sec,       tmHwReceived.tv_usec, 
-                tmRcvKernelLatency.tv_sec, tmRcvKernelLatency.tv_usec,
-                tmHwSentPrevious.tv_sec,   tmHwSentPrevious.tv_usec,
+  (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  HwRcvd: %02ld.%06ld  RcvKLat: %02ld.%06ld  "
+                          "HwSent: %02ld.%06ld  SndKLat: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
+                _sSourceIpString, _iPortNum,
+                tmSent.tv_sec,              tmSent.tv_usec, 
+                tmReceived .tv_sec,         tmReceived .tv_usec,
+                tmDiff.tv_sec,              tmDiff.tv_usec, 
+                tmHwReceived.tv_sec,        tmHwReceived.tv_usec, 
+                tmRcvKernelLatency.tv_sec,  tmRcvKernelLatency.tv_usec,
+                tmHwSent.tv_sec,            tmHwSent.tv_usec,
+                tmSendKernelLatency.tv_sec, tmSendKernelLatency.tv_usec,
                 ((nReceivedByServer-1)%50)+1,
                 ((nSentByClient    -1)%50)+1);
 }
