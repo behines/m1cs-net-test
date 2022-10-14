@@ -162,6 +162,7 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
 
   _ui8MsgIndex = 0;
   _bInitSuccessfully = true;
+  _tvTimestampOfLastMessage = { 0, 0 };
 
   // Initialize message header structure for use with recvmsg() when reading back the hardware timestamp
   memset(&_MsgHdr,  0, sizeof(_MsgHdr));
@@ -185,12 +186,13 @@ tUdpClient::tUdpClient(const string &sServerIpAddressString, int iServerPortNum,
 */
 
 tUdpClient::tUdpClient(tUdpClient &&other) noexcept :
-  _sockTx           (other._sockTx),
-  _SiHostTx         (other._SiHostTx),
-  _ui8MsgIndex      (other._ui8MsgIndex),
-  _bInitSuccessfully(other._bInitSuccessfully),
-  _sDeviceName      (other._sDeviceName),
-  _MsgHdr           (other._MsgHdr)
+  _sockTx                  (other._sockTx),
+  _SiHostTx                (other._SiHostTx),
+  _ui8MsgIndex             (other._ui8MsgIndex),
+  _bInitSuccessfully       (other._bInitSuccessfully),
+  _sDeviceName             (other._sDeviceName),
+  _tvTimestampOfLastMessage(other._tvTimestampOfLastMessage),
+  _MsgHdr                  (other._MsgHdr)
 {
   // Fix up the pointers in _MsgHdr
   _MsgHdr.msg_control = _MsgControlBuf;

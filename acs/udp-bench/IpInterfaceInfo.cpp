@@ -22,6 +22,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <ifaddrs.h>
+#include <string.h>
 //#include <stdio.h>
 //#include <stdlib.h>
 //#include <unistd.h>
@@ -144,6 +145,9 @@ void tIpInterfaceInfo::ConfigureDeviceForHardwareTimestamping(const std::string 
       if (errno == EINVAL || errno == ENOTSUP) {
         throw tIpInterfaceInfoException(string(" Unable to enable hardware timestamping on device ") + sDeviceName);
       }
+      else cout << "IpInterfaceInfo: Unable to enable hardware timestamping on device " << sDeviceName << ": " << strerror(errno) << endl;
+    }
+    else {
       cout << "Set HWTSTAMP on " << sDeviceName << endl;
     }
     
