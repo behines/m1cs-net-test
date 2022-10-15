@@ -732,8 +732,8 @@ tServer::~tServer()
 
 void *tServer::_Thread()
 {
-  string s = "Starting thread on port " + to_string(_iPortNum) + "\n";
-  cout << s;
+  //string s = "Starting thread on port " + to_string(_iPortNum) + "\n";
+  //cout << s;
 
   ProcessIncomingMessages();
 

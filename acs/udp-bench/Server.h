@@ -35,7 +35,7 @@
 
 #define STATS_PRINT_PERIOD_SECONDS   ( 5)
 #define HISTOGRAM_PRINT_HEIGHT       (20)
-#define HISTOGRAM_LOGPLOT_BASE       (50)
+#define HISTOGRAM_LOGPLOT_BASE       (20)
 
 #define ACCUMULATOR_NBINS            (100   )
 #define ACCUMULATOR_MS_PER_BIN       (  0.25)
