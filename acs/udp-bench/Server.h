@@ -139,7 +139,7 @@ struct tCorrectedStatsSummer {
   double             _dSum;
   double             _dMin;
   double             _dMax;
-  tMedianAccumulator _MedianAccumulator;
+  tMedianAccumulator _MedianAccumulator;  // Accumulates in milliseconds
 
   int                _HistCounts[ACCUMULATOR_NBINS+1];
 };
@@ -167,11 +167,11 @@ public:
   const tCorrectedStats &ComputeCorrectedStats(LATENCY_MEASUREMENT_TYPE lmType);
   const tCorrectedStats &CorrectedStats(LATENCY_MEASUREMENT_TYPE lmType) { return _CorrectedStats[lmType]; }
 
-  void PrintStats();
+  void Print(LATENCY_MEASUREMENT_TYPE lmType, std::ostream &strm = std::cout);
 
 protected:
   std::mutex         _AccumulatorMutex;
-  tSampleAccumulator _AccLatency[LM_NUM_MEASUREMENTS];
+  tSampleAccumulator _AccLatency[LM_NUM_MEASUREMENTS];   // All values are accumulated in milliseconds
   double             _dLatencyMin[LM_NUM_MEASUREMENTS];
   double             _dLatencyMax[LM_NUM_MEASUREMENTS];
   tCorrectedStats    _CorrectedStats[LM_NUM_MEASUREMENTS];

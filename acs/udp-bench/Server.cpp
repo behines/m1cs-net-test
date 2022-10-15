@@ -144,43 +144,34 @@ const tCorrectedStats &tSampleStats::ComputeCorrectedStats(LATENCY_MEASUREMENT_T
 
 
 /***************************************************
-* tSampleStats::PrintStats
+* tSampleStats::Print
 *
 *
 * INPUTS:
 *    
 */
 
-void tSampleStats::PrintStats()
+void tSampleStats::Print(LATENCY_MEASUREMENT_TYPE lmType, std::ostream &strm)
 {
-  #if 0
-  
   int i;
 
-  if (extract::count(_AccLatency[LM_TOTAL]) < 3) return;
+  if (extract::count(_AccLatency[lmType]) < 3) return;
 
-  ComputeCorrectedStats();
+  ComputeCorrectedStats(lmType);
 
-  const tCorrectedStats &cStats = _CorrectedStats[LM_TOTAL];
+  const tCorrectedStats &cStats = _CorrectedStats[lmType];
 
-  cout << std::fixed << setprecision(0);
-  cout << "Count: " << cStats._iCount << " Min: " << _dLatencyMin[LM_TOTAL] << " Max: " << _dLatencyMax[LM_TOTAL]
+  strm << std::fixed << setprecision(0);
+  strm << "Count: " << cStats._iCount << " Min: " << _dLatencyMin[lmType] << " Max: " << _dLatencyMax[lmType]
           << setprecision(2) << " Mean: " << cStats._dMean  << " Median: " << cStats._dMedian
           << " Mismatches: " << _nMismatches << " Dropped: " << _nDropped
           <<  endl;
 
-  cout << std::fixed << setprecision(2);
-
   for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-    cout << gHistBins[i] << " ";
+    strm << cStats._HistCounts[i] << " ";
   }
-  cout << endl;
-  for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-    cout << cStats._HistCounts[i] << " ";
-  }
-  cout << endl;
+  strm << endl;
 
-  #endif
 }
 
 
@@ -357,8 +348,8 @@ void tCorrectedStatsSummer::Print(bool bLog, std::ostream &strm)
     strm << endl;
   #endif
 
-  if (bLog)   PrintHistogram(HISTOGRAM_LOGPLOT_BASE);
-  else        PrintHistogram(0);
+  if (bLog)   PrintHistogram(HISTOGRAM_LOGPLOT_BASE, strm);
+  else        PrintHistogram(0, strm);
 
   strm << endl;
 }
@@ -727,9 +718,39 @@ void tSamplePrinter::SamplePrintingEndlessLoop()
 
 void tSamplePrinter::OutputFinalReport()
 {
+  cout << "Writing output files..." << endl;
+
   for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true, std::cout);
+    // Print Summary Stats to file
+    _LatencyDataFile[i] << "***Summary Stats***" << endl;
+    _LatencyDataFile[i] << "Bins: " ;
+    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+     _LatencyDataFile[i] << gHistBins[i] << " ";
+    }
+    _LatencyDataFile[i] << endl;
+
+    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true, _LatencyDataFile[i]);
+
+    // Print individual connection stats to file
+    _LatencyDataFile[i] << "***Per-Connection Stats***" << endl;
+    for (auto & pLogger : _SampleLoggerList) {
+      _LatencyDataFile[i] << pLogger->_sSourceIpString << " : ";
+      pLogger->_Stats.Print((LATENCY_MEASUREMENT_TYPE) i, _LatencyDataFile[i]);
+    } 
+    _LatencyDataFile[i].close();
   }
+
+  // Print plots to file
+  _PlotFile << "****** LINEAR PLOTS ******" << endl << endl;
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, false,  _PlotFile);
+  }
+  _PlotFile << endl << endl << " ****** LOG PLOTS ******" << endl << endl;
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true,  _PlotFile);
+  }
+  _PlotFile.close();
+    cout << "Done.  Goodbye." << endl;
 }
 
 
@@ -897,6 +918,7 @@ int tServerList::ProcessTelemetry()
   /* Set up the mask of signals to temporarily block. */
   sigemptyset(&sigset);
   sigaddset(&sigset, SIGINT);
+  sigprocmask(SIG_BLOCK, &sigset, NULL);
 
   /* Wait for a signal to arrive. */
   sigwait(&sigset, &sig);
