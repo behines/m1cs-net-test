@@ -23,6 +23,9 @@ extern "C" {
 using namespace std;
 
 
+const char *sDataSetNames[] = { "TOTAL LATENCY", "RCVR KERNEL LATENCY", "SNDR KERNEL LATENCY", "NETWORK LATENCY" };
+
+
 /***************************************************
 * Static member initialization
 */
@@ -254,6 +257,62 @@ void tCorrectedStatsSummer::Accumulate(const tCorrectedStats &Stats)
 
 
 /***************************************************
+* tCorrectedStatsSummer::PrintHistogram
+*
+* INPUTS:
+*   iLogBase - pass in 0 for linear, a base for varying degrees of loggy-ness
+*/
+
+void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
+{
+  int    i, j;
+  double dMaxBinValue = 0.0;
+  double dThresh;
+  double dHistCounts[ACCUMULATOR_NBINS+1];
+  double xVal;
+  bool   bDoLog = (dLogBase != 0.0);
+
+  double dLogDivisor = bDoLog ? log(dLogBase) : 0.0;
+
+  // Find the max value, log-transforming if appropriate
+  for (i=0; i<=ACCUMULATOR_NBINS; i++) {
+    dHistCounts[i] = bDoLog ? ( (_HistCounts[i]<=0) ? 0 : log(_HistCounts[i]) / dLogDivisor ) :
+                                 _HistCounts[i];
+    if (dHistCounts[i] > dMaxBinValue)  dMaxBinValue = dHistCounts[i];
+  }
+
+  cout << endl << setprecision(0);
+  for (i=HISTOGRAM_PRINT_HEIGHT-1; i>=0; i--) {
+    dThresh = ((double)i) * dMaxBinValue / HISTOGRAM_PRINT_HEIGHT;
+    cout << setw(8) <<  (bDoLog ? (int) pow(dLogBase,dThresh) : dThresh);
+    std::string sRow = " ";
+    for (j=0; j<=ACCUMULATOR_NBINS; j++) {
+      sRow += (dHistCounts[j] > dThresh) ? 'X' : ' ';
+    }
+    cout << sRow << endl;
+  }
+
+
+  // Print horizontal axis
+  cout <<            "         " + string(ACCUMULATOR_NBINS, '-') << endl;
+  std::string sRow = "        0";
+  dThresh = HISTOGRAM_TICK_MARK_INTERVAL * 0.99;
+  for (i=0; i<ACCUMULATOR_NBINS; i++) {
+    xVal = ((double)i) * ACCUMULATOR_MS_PER_BIN;
+    if (xVal > dThresh) {
+      dThresh += HISTOGRAM_TICK_MARK_INTERVAL;
+      sRow += to_string((int)xVal);
+      if (xVal >= 10.0) i++;  // If we printed out an extra character then skip ahead
+    }
+    else {
+      sRow += ' ';
+    }
+  }
+  cout << sRow << endl << endl;
+}
+
+
+/***************************************************
 * tCorrectedStatsSummer::Print
 *
 * INPUTS:
@@ -262,25 +321,29 @@ void tCorrectedStatsSummer::Accumulate(const tCorrectedStats &Stats)
 
 void tCorrectedStatsSummer::Print()
 {
-  int i;
-
   if (_iCount < 1) return;
 
+  // Mean and Median are in milliseconds, like the histogram
   cout << std::fixed << setprecision(0);
   cout << "Count: " << _iCount << " Min: " << _dMin << " Max: " << _dMax
-          << setprecision(2) << " Mean: " << _dSum/_iCount  << " Median: " << median(_MedianAccumulator)
-          <<  endl;
+       << setprecision(2) << " Mean: " << 1000*_dSum/_iCount  << " Median: " << 1000*median(_MedianAccumulator)
+       << endl;
 
-  cout << std::fixed << setprecision(2);
+  #if 0
+    cout << std::fixed << setprecision(2);
+    int i;
+    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+      cout << _HistBins[i] << " ";
+    }
+    cout << endl;
+    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+      cout << _HistCounts[i] << " ";
+    }
+    cout << endl;
+  #endif
 
-  for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-    cout << _HistBins[i] << " ";
-  }
-  cout << endl;
-  for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-    cout << _HistCounts[i] << " ";
-  }
-  cout << endl;
+  PrintHistogram();
+  PrintHistogram(10);
 }
 
 
@@ -557,9 +620,9 @@ void tSamplePrinter::AccumulateStats()
       StatsSummer[i].Accumulate(pLogger->_Stats.CorrectedStats((LATENCY_MEASUREMENT_TYPE) i));
     }
   }
-
-  // Now sum the stats
+   
   for (int i = 0; i<1; i++) { //LM_NUM_MEASUREMENTS; i++) {
+    cout << string(20,' ') << "*** " << sDataSetNames[i] << " ***";
     StatsSummer[i].Print();
   }
 }
@@ -574,6 +637,8 @@ void tSamplePrinter::AccumulateStats()
 void tSamplePrinter::PrintAccumulatedStats()
 {
   AccumulateStats();
+
+
 }
 
 

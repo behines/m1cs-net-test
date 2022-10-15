@@ -28,9 +28,26 @@
 #include "PThread.h"
 #include "UdpConnection.h"
 
+/***************************************
+* CONFIGURABLE VALUES
+*/
+
+
+#define STATS_PRINT_PERIOD_SECONDS ( 5)
+#define HISTOGRAM_PRINT_HEIGHT     (10)
+
+#define ACCUMULATOR_NBINS            (50  )
+#define ACCUMULATOR_MS_PER_BIN       ( 0.2)
+#define ACCUMULATOR_MAX_MS           (ACCUMULATOR_NBINS*ACCUMULATOR_MS_PER_BIN)
+#define HISTOGRAM_TICK_MARK_INTERVAL (1.0)
+
+
+/***************************************
+* RARELY CONFIGURED VALUES
+*/
+
 #define SAMPLES_PER_SECOND         (50)
 #define SAMPLE_QUEUE_DEPTH_SECONDS ( 2)
-#define STATS_PRINT_PERIOD_SECONDS ( 5)
 
 // We allow the circular buffers to get about half full
 #define SAMPLE_QUEUE_DRAIN_PERIOD_MS (SAMPLE_QUEUE_DEPTH_SECONDS*1000/2)
@@ -46,11 +63,8 @@
 #define SAMPLE_QUEUE_BUFFER_DEPTH 
 #endif
 
-#define IP_ADDRESS_MAX_LEN_IN_CHARS (45)
+#define IP_ADDRESS_MAX_LEN_IN_CHARS  (45)
 
-#define ACCUMULATOR_NBINS      (50  )
-#define ACCUMULATOR_MS_PER_BIN ( 0.2)
-#define ACCUMULATOR_MAX_MS     (ACCUMULATOR_NBINS*ACCUMULATOR_MS_PER_BIN)
 
 using namespace boost::accumulators;
 
@@ -118,6 +132,7 @@ struct tCorrectedStatsSummer {
 
   void Accumulate(const tCorrectedStats &Stats);
   void Print();
+  void PrintHistogram(double dLogBase = 0.0);
 
   int                _iCount;
   double             _dSum;
