@@ -39,15 +39,21 @@ tSamplePrinter tSampleLogger::_SamplePrinter;
 */
 
 tSampleStats::tSampleStats() :
-  _AccTotalLatency(tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS)
+  _AccLatency{ { tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS },
+               { tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS },
+               { tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS },
+               { tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS } }
 {
   // This is a kludge to force the accumulators' bins to be where we want.  We
   // stuff in a pair of fake samples at the extremes we want.  This will mess up
   // the min, max, and mean.  We will accumulator our our min and max, and we
   // can clean up the mean if we know the count.
-  _AccTotalLatency(0.0);   _AccTotalLatency(ACCUMULATOR_MAX_MS); 
-  _dTotalLatencyMin =  999999999999999.0;
-  _dTotalLatencyMax = -10000.0;
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+    _AccLatency[i](0); 
+    _AccLatency[i](ACCUMULATOR_MAX_MS); 
+    _dLatencyMin[i] =  999999999999999.0;
+    _dLatencyMax[i] = -10000.0;
+  }
 
   _nMismatches = 0;
   _nDropped    = 0;
@@ -66,12 +72,14 @@ tSampleStats::tSampleStats() :
 */
 
 tSampleStats::tSampleStats(tSampleStats &&other) noexcept :
-  _AccTotalLatency      (other._AccTotalLatency),
-  _dTotalLatencyMin     (other._dTotalLatencyMin),
-  _dTotalLatencyMax     (other._dTotalLatencyMax),
-  _nMismatches          (other._nMismatches),
-  _nDropped             (other._nDropped)
+  _AccLatency      (other._AccLatency),
+  _nMismatches     (other._nMismatches),
+  _nDropped        (other._nDropped)
 {
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+    _dLatencyMin[i] = other._dLatencyMin[i];
+    _dLatencyMax[i] = other._dLatencyMax[i];
+  }
 }
 
 
@@ -83,16 +91,41 @@ tSampleStats::tSampleStats(tSampleStats &&other) noexcept :
 *    
 */
 
-void tSampleStats::AccumulateSample(double dTotalLatencyMicroseconds, bool bMismatch, bool bDropped)
+void tSampleStats::AccumulateSample(const double dLatencyMicroseconds[LM_NUM_MEASUREMENTS], bool bMismatch, bool bDropped)
 {
-  _AccTotalLatency(dTotalLatencyMicroseconds/100);
+  std::unique_lock lock(_AccumulatorMutex);
 
-  if (dTotalLatencyMicroseconds < _dTotalLatencyMin) _dTotalLatencyMin = dTotalLatencyMicroseconds;
-  if (dTotalLatencyMicroseconds > _dTotalLatencyMax) _dTotalLatencyMax = dTotalLatencyMicroseconds;
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+  
+    _AccLatency[i](dLatencyMicroseconds[i]/100);
+
+    if (dLatencyMicroseconds[i] < _dLatencyMin[i]) _dLatencyMin[i] = dLatencyMicroseconds[i];
+    if (dLatencyMicroseconds[i] > _dLatencyMax[i]) _dLatencyMax[i] = dLatencyMicroseconds[i];
+  }
 
   _nMismatches += bMismatch;
   _nDropped    += bDropped;
 }
+
+
+/***************************************************
+* tSampleStats::ComputeCorrectedStats
+*
+*
+* INPUTS:
+*    
+*/
+
+void tSampleStats::ComputeCorrectedStats()
+{
+  std::unique_lock lock(_AccumulatorMutex);
+
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+    _CorrectedStats[i] = tCorrectedStats(_AccLatency[i], _dLatencyMin[i], _dLatencyMax[i]);
+  }
+}
+
+
 
 
 /***************************************************
@@ -107,12 +140,14 @@ void tSampleStats::PrintStats()
 {
   int i;
 
-  if (extract::count(_AccTotalLatency) < 3) return;
+  if (extract::count(_AccLatency[LM_TOTAL]) < 3) return;
 
-  tCorrectedStats cStats(_AccTotalLatency, _dTotalLatencyMin, _dTotalLatencyMax);
+  ComputeCorrectedStats();
+
+  const tCorrectedStats &cStats = _CorrectedStats[LM_TOTAL];
 
   cout << std::fixed << setprecision(0);
-  cout << "Count: " << cStats._iCount << " Min: " << cStats._dMin << " Max: " << cStats._dMax 
+  cout << "Count: " << cStats._iCount << " Min: " << _dLatencyMin[LM_TOTAL] << " Max: " << _dLatencyMax[LM_TOTAL]
           << setprecision(2) << " Mean: " << cStats._dMean  << " Median: " << cStats._dMedian
           << " Mismatches: " << _nMismatches << " Dropped: " << _nDropped
           <<  endl;
@@ -130,8 +165,6 @@ void tSampleStats::PrintStats()
 }
 
 
-
-
 /***************************************************
 * tCorrectedStats::tCorrectedStats
 *
@@ -143,7 +176,7 @@ void tSampleStats::PrintStats()
 *    
 */
 
-tCorrectedStats::tCorrectedStats(tSampleAccumulator &Acc, double dMin, double dMax) :
+tCorrectedStats::tCorrectedStats(const tSampleAccumulator &Acc, double dMin, double dMax) :
   _dMin(dMin),
   _dMax(dMax)
 {
@@ -174,8 +207,81 @@ tCorrectedStats::tCorrectedStats(tSampleAccumulator &Acc, double dMin, double dM
 
 
 
+/***************************************************
+* tCorrectedStatsSummer::tCorrectedStatsSummer
+*
+* INPUTS:
+*    
+*/
+
+tCorrectedStatsSummer::tCorrectedStatsSummer(const double HistBins[ACCUMULATOR_NBINS+1])
+{
+  int i;
+
+  _iCount = 0;
+  _dSum   = 0;
+  _dMin   =  999999999999999.0;
+  _dMax   = -10000.0;
+
+  for (i=0; i<=ACCUMULATOR_NBINS; i++) {
+    _HistBins[i] = HistBins[i];
+  }
+}
 
 
+/***************************************************
+* tCorrectedStatsSummer::Accumulate
+*
+* INPUTS:
+*    
+*/
+
+void tCorrectedStatsSummer::Accumulate(const tCorrectedStats &Stats)
+{
+  int i;
+
+  _iCount += Stats._iCount;
+  if (Stats._dMin < _dMin)   _dMin = Stats._dMin;
+  if (Stats._dMax > _dMax)   _dMax = Stats._dMax;
+
+  _dSum += Stats._dMean * Stats._iCount;
+  _MedianAccumulator(Stats._dMedian);
+
+  for (i=0; i<=ACCUMULATOR_NBINS; i++) {
+    _HistCounts[i] += Stats._HistCounts[i];
+  }
+}
+
+
+/***************************************************
+* tCorrectedStatsSummer::Print
+*
+* INPUTS:
+*    
+*/
+
+void tCorrectedStatsSummer::Print()
+{
+  int i;
+  
+  if (_iCount < 1) return;
+
+  cout << std::fixed << setprecision(0);
+  cout << "Count: " << _iCount << " Min: " << _dMin << " Max: " << _dMax
+          << setprecision(2) << " Mean: " << _dSum/_iCount  << " Median: " << median(_MedianAccumulator)
+          <<  endl;
+
+  cout << std::fixed << setprecision(2);
+
+  for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+    cout << _HistBins[i] << " ";
+  }
+  cout << endl;
+  for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+    cout << _HistCounts[i] << " ";
+  }
+  cout << endl;
+}
 
 
 /***************************************************
@@ -289,8 +395,8 @@ void tSampleLogger::DrainSampleQueue()
 
 void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 {
-  struct timeval tmDiff, tmRcvKernelLatency, tmSendKernelLatency, tmHwRcvUTC, tmHwSentUTC;
-  double dTotalLatencyMicroseconds, dRcvKernelLatencyMicroseconds, dSendKernelLatencyMicroseconds;
+  struct timeval tmDiff, tmRcvKernelLatency, tmSendKernelLatency, tmHwRcvUTC, tmHwSentUTC, tmNetworkLatency;
+  double dLatency[LM_NUM_MEASUREMENTS];
   bool   bMismatch, bDropped;
 
   // The first time through, we won't have a valid previous sample, so bail out until next time.
@@ -302,21 +408,24 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
     tmHwRcvUTC  = _SamplePrinter.TAI_to_UTC(_PreviousSample._tmHwRcv_TAI);
     tmHwSentUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwSentPrevious_TAI);
 
-    timersub(&_PreviousSample._tmRcv, &tmHwRcvUTC,              &tmRcvKernelLatency);
+    timersub(&_PreviousSample._tmRcv, &tmHwRcvUTC,              &tmRcvKernelLatency );
     timersub(&tmHwSentUTC,            &_PreviousSample._tmSent, &tmSendKernelLatency);
+    timersub(&tmHwRcvUTC,             &tmHwSentUTC,             &tmNetworkLatency   );
+
 
     //PrintSample(_PreviousSample._tmSent, _PreviousSample._tmRcv, tmDiff, 
     //            tmHwRcvUTC, tmRcvKernelLatency, tmHwSentUTC, tmSendKernelLatency,
     //            _PreviousSample._nRcvdByServer, _PreviousSample._nSentByClient);
 
-    dTotalLatencyMicroseconds      = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
-    //dSRcvKernelLatencyMicroseconds = ;
-    //dSendKernelLatencyMicroseconds = ;
+    dLatency[LM_TOTAL  ] = tmDiff             .tv_sec*1.0e6 + tmDiff             .tv_usec;
+    dLatency[LM_SERVER ] = tmRcvKernelLatency .tv_sec*1.0e6 + tmRcvKernelLatency .tv_usec;
+    dLatency[LM_CLIENT ] = tmSendKernelLatency.tv_sec*1.0e6 + tmSendKernelLatency.tv_usec;
+    dLatency[LM_NETWORK] = tmNetworkLatency   .tv_sec*1.0e6 + tmNetworkLatency   .tv_usec;
 
     bMismatch = (_PreviousSample._nRcvdByServer != _PreviousSample._nSentByClient);
     bDropped  = (Sample._nSentByClient != _PreviousSample._nSentByClient + 1);
 
-   _Stats.AccumulateSample(dTotalLatencyMicroseconds, bMismatch, bDropped);
+   _Stats.AccumulateSample(dLatency, bMismatch, bDropped);
 
   }
   else {
@@ -426,9 +535,32 @@ void tSamplePrinter::RemoveLogger(tSampleLogger *pLoggerToRemove)
 
 void tSamplePrinter::AccumulateStats()
 {
+  const double *pHistBins = NULL;
+  // The HistBins are the sample for all measurements of all loggers
+  tCorrectedStatsSummer StatsSummer[LM_NUM_MEASUREMENTS];
+
   // Loop over all the loggers in our list
-   for (auto & pLogger : _SampleLoggerList) {
-    pLogger->DrainSampleQueue();
+  for (auto & pLogger : _SampleLoggerList) {
+    pLogger->ComputeCorrectedStats();
+
+    // This only has to be done once, but it can't be done until ComputeCorrectedStats has been called
+    // at least once, so we do it here.
+    if (pHistBins == NULL) {
+      pHistBins = _SampleLoggerList.front()->_Stats.HistBins();
+      for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+        StatsSummer[i] = tCorrectedStatsSummer(pHistBins);
+      }
+    }
+
+    // Now sum the stats
+    for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+      StatsSummer[i].Accumulate(pLogger->_Stats.CorrectedStats((LATENCY_MEASUREMENT_TYPE) i));
+    }
+  }
+
+  // Now sum the stats
+  for (int i = 0; i<1; i++) { //LM_NUM_MEASUREMENTS; i++) {
+    StatsSummer[i].Print();
   }
 }
 
@@ -442,10 +574,6 @@ void tSamplePrinter::AccumulateStats()
 void tSamplePrinter::PrintAccumulatedStats()
 {
   AccumulateStats();
-
-  tSampleLogger *pSampleLogger = _SampleLoggerList.front();
-
-  pSampleLogger->_Stats.PrintStats();
 }
 
 

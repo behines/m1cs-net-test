@@ -56,10 +56,12 @@ using namespace boost::accumulators;
 
 class tSampleLogger;
 
-
 typedef accumulator_set<double, stats<tag::count, tag::mean, tag::median(with_p_square_quantile), tag::density>> tSampleAccumulator;
+typedef accumulator_set<double, stats<                       tag::median(with_p_square_quantile)              >> tMedianAccumulator;
 typedef boost::iterator_range<std::vector<std::pair<double, double>>::iterator> tBoostHistogram;
 
+
+typedef enum LATENCY_MEASUREMENT_TYPE { LM_TOTAL, LM_SERVER, LM_CLIENT, LM_NETWORK, LM_NUM_MEASUREMENTS } LATENCY_MEASUREMENT_TYPE;
 
 /***************************
 * tLatencySample
@@ -91,7 +93,8 @@ struct tLatencySample {
 */
 
 struct tCorrectedStats {
-  tCorrectedStats(tSampleAccumulator &Acc, double dMin, double dMax);
+  tCorrectedStats() {}
+  tCorrectedStats(const tSampleAccumulator &Acc, double dMin, double dMax);
 
   int    _iCount;
   double _dMin;
@@ -100,6 +103,30 @@ struct tCorrectedStats {
   double _dMedian;
   double _HistBins  [ACCUMULATOR_NBINS+1];
   int    _HistCounts[ACCUMULATOR_NBINS+1];
+};
+
+
+/***************************
+* tCorrectedStatsSummer
+*
+* Adds up the stats from the  492 individual loggers
+*/
+
+struct tCorrectedStatsSummer {
+  tCorrectedStatsSummer() {}
+  tCorrectedStatsSummer(const double HistBins[ACCUMULATOR_NBINS+1]);
+
+  void Accumulate(const tCorrectedStats &Stats);
+  void Print();
+
+  int                _iCount;
+  double             _dSum;
+  double             _dMin;
+  double             _dMax;
+  tMedianAccumulator _MedianAccumulator;
+
+  double             _HistBins  [ACCUMULATOR_NBINS+1];
+  int                _HistCounts[ACCUMULATOR_NBINS+1];
 };
 
 
@@ -120,15 +147,22 @@ public:
   tSampleStats(const tSampleStats &) = delete;   
   tSampleStats& operator=(const tSampleStats &) = delete;
 
-  void AccumulateSample(double dTotalLatencyMicroseconds, bool bMismatch, bool bDropped);
+  // This method won't work until you've called ComputeCorrectedStats the first time
+  const double *HistBins() { return _CorrectedStats[LM_TOTAL]._HistBins; }
 
+  void AccumulateSample(const double dLatencyMicroseconds[LM_NUM_MEASUREMENTS], bool bMismatch, bool bDropped);
 
+  void ComputeCorrectedStats();
+  const tCorrectedStats &CorrectedStats(LATENCY_MEASUREMENT_TYPE lmType) { return _CorrectedStats[lmType]; }
 
   void PrintStats();
 
 protected:
-  tSampleAccumulator _AccTotalLatency;
-  double             _dTotalLatencyMin, _dTotalLatencyMax;
+  std::mutex         _AccumulatorMutex;
+  tSampleAccumulator _AccLatency[LM_NUM_MEASUREMENTS];
+  double             _dLatencyMin[LM_NUM_MEASUREMENTS];
+  double             _dLatencyMax[LM_NUM_MEASUREMENTS];
+  tCorrectedStats    _CorrectedStats[LM_NUM_MEASUREMENTS];
   int                _nMismatches;
   int                _nDropped;
 
@@ -181,7 +215,11 @@ public:
   tSampleLogger(const tSampleLogger &) = delete;   
   tSampleLogger& operator=(const tSampleLogger &) = delete;
   
+  ~tSampleLogger();
+
   void DrainSampleQueue();
+  void ComputeCorrectedStats() { _Stats.ComputeCorrectedStats(); }
+
   void ProcessSample(const tLatencySample &Sample);
   void PrintSample(const struct timeval &tmSent,
                    const struct timeval &tmReceived, const struct timeval &tmDiff,
@@ -189,11 +227,7 @@ public:
                    const struct timeval &tmHwSent, const struct timeval &tmSendKernelLatency,
                    int nReceivedByServer, int nSentByClient);
 
-  ~tSampleLogger();
-
-  void StartLoggerThread();
-
-  void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
+void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
                  struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress);
 
 protected:
@@ -233,8 +267,6 @@ public:
   tServer& operator=(const tServer &) = delete;
 
   ~tServer();
-  
-  //void StartSampleLoggerThread() { _SampleLogger.StartLoggerThread(); }
 
   int ProcessIncomingMessages();
 
