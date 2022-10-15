@@ -339,7 +339,7 @@ void tCorrectedStatsSummer::Print()
 
   // Mean and Median are in milliseconds, like the histogram
   cout << std::fixed << setprecision(0);
-  cout << "Count: " << _iCount << " Min: " << _dMin << " Max: " << _dMax
+  cout << "      Count: " << _iCount << " Min: " << _dMin << " Max: " << _dMax
        << setprecision(2) << " Mean: " << 1000*_dSum/_iCount  << " Median: " << 1000*median(_MedianAccumulator)
        << endl;
 
@@ -639,7 +639,10 @@ void tSamplePrinter::PrintAccumulatedStats()
     StatsSummer[i].Print();
   }
 
-
+  for (int i = 0; i<1; i++) {
+    cout << string(20,' ') << "*** " << sDataSetNames[i] << " ***" << endl;
+    StatsSummer[i].Print();
+  }
 }
 
 
