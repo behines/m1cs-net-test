@@ -33,7 +33,7 @@
 */
 
 
-#define STATS_PRINT_PERIOD_SECONDS   ( 5)
+#define STATS_PRINT_PERIOD_SECONDS   (10)
 #define HISTOGRAM_PRINT_HEIGHT       (20)
 #define HISTOGRAM_LOGPLOT_BASE       (20)
 
@@ -130,7 +130,7 @@ struct tCorrectedStatsSummer {
   tCorrectedStatsSummer();
 
   void Accumulate(const tCorrectedStats &Stats);
-  void Print();
+  void Print(bool bLog);
   void PrintHistogram(double dLogBase = 0.0);
 
   int                _iCount;
@@ -196,7 +196,7 @@ public:
   struct timeval TAI_to_UTC(const struct timeval &tv_TAI);
 
   void AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY_MEASUREMENT_TYPE lmType);
-  void PrintAccumulatedStats();
+  void PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog = true);
 
 protected:
   void SamplePrintingEndlessLoop();
@@ -237,7 +237,7 @@ public:
                    const struct timeval &tmHwSent, const struct timeval &tmSendKernelLatency,
                    int nReceivedByServer, int nSentByClient);
 
-void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
+  void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
                  struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress);
 
 protected:
@@ -302,6 +302,8 @@ public:
   bool IsEmpty() { return _ServerList.empty(); }
 
   int ProcessTelemetry();
+
+  void OutputFinalReport();
 
 protected:
   std::list<tServer> _ServerList;

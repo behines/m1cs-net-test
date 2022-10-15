@@ -322,7 +322,8 @@ void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
       sRow += ' ';
     }
   }
-  cout << sRow << endl << endl;
+  cout << sRow << endl 
+       << "                             Latency (ms)" << endl << endl;
 }
 
 
@@ -333,13 +334,13 @@ void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
 *    
 */
 
-void tCorrectedStatsSummer::Print()
+void tCorrectedStatsSummer::Print(bool bLog)
 {
   if (_iCount < 1) return;
 
   // Mean and Median are in milliseconds, like the histogram
   cout << std::fixed << setprecision(0);
-  cout << "      Count: " << _iCount << " Min: " << _dMin << "us Max: " << _dMax
+  cout << "                      Count: " << _iCount << " Min: " << _dMin << "us Max: " << _dMax
        << setprecision(1) << "us Mean: " << 1000*_dSum/_iCount  << "us Median: " << 1000*median(_MedianAccumulator) << "us"
        << endl;
 
@@ -356,7 +357,8 @@ void tCorrectedStatsSummer::Print()
     cout << endl;
   #endif
 
-  PrintHistogram(HISTOGRAM_LOGPLOT_BASE);
+  if (bLog)   PrintHistogram(HISTOGRAM_LOGPLOT_BASE);
+  else        PrintHistogram(0);
 
   cout << endl;
 }
@@ -628,20 +630,16 @@ void tSamplePrinter::AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY
 * INPUTS:
 */
 
-void tSamplePrinter::PrintAccumulatedStats()
+void tSamplePrinter::PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog)
 {
   // The HistBins are the sample for all measurements of all loggers
   tCorrectedStatsSummer StatsSummer[LM_NUM_MEASUREMENTS];
 
   // Sum the stats for each stats type
-  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-    AccumulateStats(StatsSummer[i], (LATENCY_MEASUREMENT_TYPE) i);
-  }
+  AccumulateStats(StatsSummer[lmType], lmType);
 
-  for (int i = 0; i<1; i++) {
-    cout << string(20,' ') << "*** " << sDataSetNames[i] << " ***" << endl;
-    StatsSummer[i].Print();
-  }
+  cout << string(35,' ') << "*** " << sDataSetNames[lmType] << " ***" << endl;
+  StatsSummer[lmType].Print(bLog);
 }
 
 
@@ -673,7 +671,7 @@ void tSamplePrinter::SamplePrintingEndlessLoop()
       }
     }
 
-    PrintAccumulatedStats();
+    PrintAccumulatedStats(LM_TOTAL);
   }
 }
 
@@ -784,6 +782,7 @@ int tServer::ProcessIncomingMessages()
 }
 
 
+
 /***************************************************
 * tServerList constructor
 *
@@ -851,5 +850,30 @@ int tServerList::ProcessTelemetry()
     if (Server.IsRunning())  Server.StopThread(true);
   }
 
+  OutputFinalReport();
+
   return 0;
 }
+
+/***************************************************
+* tServerList::OutputFinalReport
+*
+* 
+*    
+*/
+
+void tServerList::OutputFinalReport()
+{
+  //_SampleLogger
+}
+
+/***************************************************
+* tServer::OutputFinalReport
+*
+* 
+*    
+*/
+
+//void tServer::OutputFinalReport()
+//{
+//}
