@@ -63,7 +63,13 @@
       "typeinfo": "cpp",
       "strstream": "cpp",
       "map": "cpp",
-      "iomanip": "cpp"
+      "iomanip": "cpp",
+      "bitset": "cpp",
+      "complex": "cpp",
+      "set": "cpp",
+      "typeindex": "cpp",
+      "valarray": "cpp",
+      "variant": "cpp"
     },
   }
 }

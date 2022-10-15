@@ -30,18 +30,154 @@ using namespace std;
 tSamplePrinter tSampleLogger::_SamplePrinter;
 
 
+
+
+/***************************************************
+* tSampleStats constructor
+*
+* INPUTS:
+*/
+
+tSampleStats::tSampleStats() :
+  _AccTotalLatency(tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS)
+{
+  // This is a kludge to force the accumulators' bins to be where we want.  We
+  // stuff in a pair of fake samples at the extremes we want.  This will mess up
+  // the min, max, and mean.  We will accumulator our our min and max, and we
+  // can clean up the mean if we know the count.
+  _AccTotalLatency(0.0);   _AccTotalLatency(ACCUMULATOR_MAX_MS); 
+  _dTotalLatencyMin =  999999999999999.0;
+  _dTotalLatencyMax = -10000.0;
+
+  _nMismatches = 0;
+  _nDropped    = 0;
+}
+
+
+/***************************************************
+* tSampleStats move constructor
+*
+* This is used during assignment of the temporary object to the list.  If we don't have a
+* move constructor, then the destructor for the temporary object will close the file
+* descriptor.
+*
+* INPUTS:
+*    other - the contents of the object being moved
+*/
+
+tSampleStats::tSampleStats(tSampleStats &&other) noexcept :
+  _AccTotalLatency      (other._AccTotalLatency),
+  _dTotalLatencyMin     (other._dTotalLatencyMin),
+  _dTotalLatencyMax     (other._dTotalLatencyMax),
+  _nMismatches          (other._nMismatches),
+  _nDropped             (other._nDropped)
+{
+}
+
+
+/***************************************************
+* tSampleStats::AccumulateSample
+*
+*
+* INPUTS:
+*    
+*/
+
+void tSampleStats::AccumulateSample(double dTotalLatencyMicroseconds, bool bMismatch, bool bDropped)
+{
+  _AccTotalLatency(dTotalLatencyMicroseconds/100);
+
+  if (dTotalLatencyMicroseconds < _dTotalLatencyMin) _dTotalLatencyMin = dTotalLatencyMicroseconds;
+  if (dTotalLatencyMicroseconds > _dTotalLatencyMax) _dTotalLatencyMax = dTotalLatencyMicroseconds;
+
+  _nMismatches += bMismatch;
+  _nDropped    += bDropped;
+}
+
+
+/***************************************************
+* tSampleStats::PrintStats
+*
+*
+* INPUTS:
+*    
+*/
+
+void tSampleStats::PrintStats()
+{
+  int i;
+
+  tCorrectedStats cStats(_AccTotalLatency, _dTotalLatencyMin, _dTotalLatencyMax);
+
+  cout << std::fixed << setprecision(0);
+  cout << "Count: " << cStats._iCount << " Min: " << cStats._dMin << " Max: " << cStats._dMax 
+          << setprecision(2) << " Mean: " << cStats._dMean  << " Median: " << cStats._dMedian
+          << " Mismatches: " << _nMismatches << " Dropped: " << _nDropped
+          <<  endl;
+
+  cout << std::fixed << setprecision(2);
+
+  for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+    cout << cStats._HistBins[i] << " ";
+  }
+  cout << endl;
+  for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+    cout << cStats._HistCounts[i] << " ";
+  }
+  cout << endl;
+}
+
+
+
+
+/***************************************************
+* tCorrectedStats::tCorrectedStats
+*
+*
+* INPUTS:
+*    
+*/
+
+tCorrectedStats::tCorrectedStats(tSampleAccumulator &Acc, double dMin, double dMax) :
+  _dMin(dMin),
+  _dMax(dMax)
+{
+  std::size_t i;
+
+  // Adjust the mean to remove the two samples we stuffed in at the beginning in order to set the bin size
+  double dOriginalMean  =           mean(Acc);
+  double iOriginalCount = extract::count(Acc);
+  double dSum           = dOriginalMean * iOriginalCount - ACCUMULATOR_MAX_MS;  
+  _iCount               = iOriginalCount - 2;
+
+  if (_iCount > 0) {
+    _dMean   = dSum / _iCount;
+    _dMedian = median(Acc);
+
+    tBoostHistogram Histogram = density(Acc);
+
+    for (i=1; i<Histogram.size(); i++) {
+      _HistBins[i-1]   = Histogram[i].first;
+      _HistCounts[i-1] = iOriginalCount * Histogram[i].second;
+    }
+  }
+}
+
+
+
+
+
+
+
 /***************************************************
 * tSampleLogger constructor
 *
 * INPUTS:
-*    sServer   - string descriptor of the service we are connecting to,
-*                e.g., "app_srv19"
-*    sHostname - hostname or dot-separated IP address
+*    
 */
 
 tSampleLogger::tSampleLogger(int iPortNum) :
   _SampleQueue(SAMPLE_QUEUE_BUFFER_DEPTH),
-  //_thread(),  // Thread creation is deferred.  See tSampleLogger::StartLoggerThread()
   _iPortNum(iPortNum)
 {
   _SamplePrinter.AddLogger(this);
@@ -63,9 +199,7 @@ tSampleLogger::tSampleLogger(int iPortNum) :
 
 tSampleLogger::tSampleLogger(tSampleLogger &&other) noexcept :
   _SampleQueue(std::move(other._SampleQueue)),
-  // Mutex and condition variable cannot be moved.  
-  //_thread     (move(other._thread)),
-  _iPortNum   (other._iPortNum)
+  _iPortNum             (other._iPortNum)
 {
   _SamplePrinter.RemoveLogger(&other);
   _SamplePrinter.AddLogger(this);
@@ -77,22 +211,6 @@ tSampleLogger::~tSampleLogger()
 {
   // _thread.join(); 
 }
-
-
-/***************************************************
-* tSampleLogger::StartLoggerThread
-*
-* Actually starts the logger thread running.  This has to wait until
-* after construction, because mutexes and condition variables cannot
-* be moved or copied.  Since temporaries are created and moved during
-* AddConnection, we have to postpone starting the thread until that
-* is complete.
-*/
-
-//void tSampleLogger::StartLoggerThread()
-//{
-//   _thread = std::thread(&tSampleLogger::PrintSamples, this);
-//}
 
 
 /***************************************************
@@ -164,6 +282,7 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 {
   struct timeval tmDiff, tmRcvKernelLatency, tmSendKernelLatency, tmHwRcvUTC, tmHwSentUTC;
   double dTotalLatencyMicroseconds, dRcvKernelLatencyMicroseconds, dSendKernelLatencyMicroseconds;
+  bool   bMismatch, bDropped;
 
   // The first time through, we won't have a valid previous sample, so bail out until next time.
   if (_PreviousSample.IsValid()) {
@@ -177,13 +296,18 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
     timersub(&_PreviousSample._tmRcv, &tmHwRcvUTC,              &tmRcvKernelLatency);
     timersub(&tmHwSentUTC,            &_PreviousSample._tmSent, &tmSendKernelLatency);
 
-    PrintSample(_PreviousSample._tmSent, _PreviousSample._tmRcv, tmDiff, 
-                tmHwRcvUTC, tmRcvKernelLatency, tmHwSentUTC, tmSendKernelLatency,
-                _PreviousSample._nRcvdByServer, _PreviousSample._nSentByClient);
+    //PrintSample(_PreviousSample._tmSent, _PreviousSample._tmRcv, tmDiff, 
+    //            tmHwRcvUTC, tmRcvKernelLatency, tmHwSentUTC, tmSendKernelLatency,
+    //            _PreviousSample._nRcvdByServer, _PreviousSample._nSentByClient);
 
     dTotalLatencyMicroseconds      = tmDiff.tv_sec*1.0e6 + tmDiff.tv_usec;
     //dSRcvKernelLatencyMicroseconds = ;
     //dSendKernelLatencyMicroseconds = ;
+
+    bMismatch = (_PreviousSample._nRcvdByServer != _PreviousSample._nSentByClient);
+    bDropped  = (Sample._nSentByClient != _PreviousSample._nSentByClient + 1);
+
+   _Stats.AccumulateSample(dTotalLatencyMicroseconds, bMismatch, bDropped);
 
   }
   else {
@@ -210,6 +334,7 @@ void tSampleLogger::PrintSample(const struct timeval &tmSent,
                                 const struct timeval &tmHwSent, const struct timeval &tmSendKernelLatency,
                                 int nReceivedByServer, int nSentByClient)
 {
+  #if 0
   (void) printf("%s::(%d): Sent: %02ld.%06ld  Rcvd: %02ld.%06ld  Lat: %02ld.%06ld  HwRcvd: %02ld.%06ld  RcvKLat: %02ld.%06ld  "
                           "HwSent: %02ld.%06ld  SndKLat: %02ld.%06ld  Nrcvd:%3d   NSent:%3d\n", 
                 _sSourceIpString, _iPortNum,
@@ -222,6 +347,7 @@ void tSampleLogger::PrintSample(const struct timeval &tmSent,
                 tmSendKernelLatency.tv_sec, tmSendKernelLatency.tv_usec,
                 ((nReceivedByServer-1)%50)+1,
                 ((nSentByClient    -1)%50)+1);
+  #endif
 }
 
 
@@ -284,20 +410,65 @@ void tSamplePrinter::RemoveLogger(tSampleLogger *pLoggerToRemove)
 
 
 /***************************************************
-* tSampleLogge::SamplePrintingEndlessLoop
+* tSamplePrinter::AccumulateStats
+*
+* INPUTS:
+*/
+
+void tSamplePrinter::AccumulateStats()
+{
+  // Loop over all the loggers in our list
+   for (auto & pLogger : _SampleLoggerList) {
+    pLogger->DrainSampleQueue();
+  }
+}
+
+
+/***************************************************
+* tSamplePrinter::AccumulateStats
+*
+* INPUTS:
+*/
+
+void tSamplePrinter::PrintAccumulatedStats()
+{
+  AccumulateStats();
+
+  tSampleLogger *pSampleLogger = _SampleLoggerList.front();
+
+  pSampleLogger->_Stats.PrintStats();
+}
+
+
+/***************************************************
+* tSamplePrinter::SamplePrintingEndlessLoop
 *
 * INPUTS:
 */
 
 void tSamplePrinter::SamplePrintingEndlessLoop()
 {
+  int iLoopsPerPrintPeriod = (STATS_PRINT_PERIOD_SECONDS*1000 / SAMPLE_QUEUE_DRAIN_PERIOD_MS);
+  int i;
+
+  auto  DrainTime = chrono::system_clock::now();
+  chrono::duration<int, std::milli> DrainIntervalInMs(SAMPLE_QUEUE_DRAIN_PERIOD_MS);  
+
   while (1) {
-    // Loop over all the loggers in our list
-    for (auto & pLogger : _SampleLoggerList) {
-      pLogger->DrainSampleQueue();
+
+
+    for (i=0; i<iLoopsPerPrintPeriod; i++) {
+      // We allow the queues to get about half full
+      DrainTime += DrainIntervalInMs;
+      std::this_thread::sleep_until(DrainTime);
+
+      // Loop over all the loggers in our list
+      for (auto & pLogger : _SampleLoggerList) {
+        pLogger->DrainSampleQueue();
+      }
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    PrintAccumulatedStats();
   }
 }
 

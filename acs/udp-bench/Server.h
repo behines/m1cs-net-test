@@ -15,21 +15,51 @@
 #include <condition_variable>
 #include <sys/time.h>
 #include <boost/circular_buffer.hpp>
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/density.hpp>
+#include <boost/accumulators/statistics/count.hpp>
+#include <boost/accumulators/statistics/median.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/min.hpp>
+#include <boost/accumulators/statistics/max.hpp>
+
+
 #include "PThread.h"
 #include "UdpConnection.h"
+
+#define SAMPLES_PER_SECOND         (50)
+#define SAMPLE_QUEUE_DEPTH_SECONDS ( 2)
+#define STATS_PRINT_PERIOD_SECONDS ( 5)
+
+// We allow the circular buffers to get about half full
+#define SAMPLE_QUEUE_DRAIN_PERIOD_MS (SAMPLE_QUEUE_DEPTH_SECONDS*1000/2)
+
+
 
 #define USE_BOOST_CIRCULAR_BUFFER
 //#define DEFER_PRINTING_WHEN_USING_BOOST
 
 #ifdef  USE_BOOST_CIRCULAR_BUFFER
-#define SAMPLE_QUEUE_BUFFER_DEPTH (100)
+#define SAMPLE_QUEUE_BUFFER_DEPTH (SAMPLES_PER_SECOND*SAMPLE_QUEUE_DEPTH_SECONDS)
 #else
 #define SAMPLE_QUEUE_BUFFER_DEPTH 
 #endif
 
 #define IP_ADDRESS_MAX_LEN_IN_CHARS (45)
 
+#define ACCUMULATOR_NBINS      (15  )
+#define ACCUMULATOR_MS_PER_BIN ( 0.1)
+#define ACCUMULATOR_MAX_MS     (ACCUMULATOR_NBINS*ACCUMULATOR_MS_PER_BIN)
+
+using namespace boost::accumulators;
+
 class tSampleLogger;
+
+
+typedef accumulator_set<double, stats<tag::count, tag::mean, tag::median(with_p_square_quantile), tag::density>> tSampleAccumulator;
+typedef boost::iterator_range<std::vector<std::pair<double, double>>::iterator> tBoostHistogram;
+
 
 /***************************
 * tLatencySample
@@ -54,6 +84,56 @@ struct tLatencySample {
   struct sockaddr_in _ClientAddress;
 };
 
+/***************************
+* tCorrectedStats
+*
+* Stats de-normalized and corrected for the fudge we had to do
+*/
+
+struct tCorrectedStats {
+  tCorrectedStats(tSampleAccumulator &Acc, double dMin, double dMax);
+
+  int    _iCount;
+  double _dMin;
+  double _dMax;
+  double _dMean;
+  double _dMedian;
+  double _HistBins  [ACCUMULATOR_NBINS+1];
+  int    _HistCounts[ACCUMULATOR_NBINS+1];
+};
+
+
+/***************************
+* tSampleStats
+*
+* Accumulates states for a single SampleLogger
+*/
+
+class tSampleStats {
+public:
+  tSampleStats();
+
+  tSampleStats(tSampleStats &&obj) noexcept;  // Move constructor - needed so that destruction of temporary does not close file.
+  // tSampleLogger& operator=(tSampleLogger&& other); // Move assignment operator, will add if needed
+
+  // Copy constructor and copy assignment operator are deleted - must only use move constructor
+  tSampleStats(const tSampleStats &) = delete;   
+  tSampleStats& operator=(const tSampleStats &) = delete;
+
+  void AccumulateSample(double dTotalLatencyMicroseconds, bool bMismatch, bool bDropped);
+
+
+
+  void PrintStats();
+
+protected:
+  tSampleAccumulator _AccTotalLatency;
+  double _dTotalLatencyMin, _dTotalLatencyMax;
+  int    _nMismatches;
+  int    _nDropped;
+
+};
+
 
 /***************************
 * tSamplePrinter - A thread that continuously drains the _SampleQueue of each tSampleLogger
@@ -70,6 +150,9 @@ public:
 
   long int TAIOffset();
   struct timeval TAI_to_UTC(const struct timeval &tv_TAI);
+
+  void AccumulateStats();
+  void PrintAccumulatedStats();
 
 protected:
   void SamplePrintingEndlessLoop();
@@ -111,7 +194,7 @@ public:
   void StartLoggerThread();
 
   void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
-                struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress);
+                 struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress);
 
 protected:
   #ifdef  USE_BOOST_CIRCULAR_BUFFER
@@ -120,19 +203,17 @@ protected:
     std::deque<tLatencySample> _SampleQueue;
   #endif
 
-  // Mutex and condition variable to allow queue-draining method to block waiting on samples
+  // Mutex to allow queue-draining method to coordinate with realtime thread
   std::mutex              _SampleQueueMutex;
-  // std::condition_variable _SampleQueueCondition;
-  // std::thread _thread;
 
   tLatencySample          _PreviousSample;
   char                    _sSourceIpString[IP_ADDRESS_MAX_LEN_IN_CHARS];
 
+  tSampleStats            _Stats;
   static tSamplePrinter   _SamplePrinter;
 
   int _iPortNum;
 };
-
 
 
 /***************************

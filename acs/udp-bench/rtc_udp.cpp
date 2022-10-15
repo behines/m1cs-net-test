@@ -20,18 +20,16 @@ extern "C" {
 #include "Server.h"
 #include <list>
 #include <iostream>
+#include <ctime>
 #include <fstream>
 #include <chrono>
 
 using namespace std;
 
-bool bDebug                = false;
-int  iThreadPriority       = 0;
-int  iFirstPort            =  M1CS_DEFAULT_FIRST_UDP_PORT;
-int  iLastPort             = (M1CS_DEFAULT_FIRST_UDP_PORT + M1CS_DEFAULT_NUM_UDP_PORTS - 1);
-
-
-
+bool bDebug                 = false;
+int  iThreadPriority        = 0;
+int  iFirstPort             =  M1CS_DEFAULT_FIRST_UDP_PORT;
+int  iLastPort              = (M1CS_DEFAULT_FIRST_UDP_PORT + M1CS_DEFAULT_NUM_UDP_PORTS - 1);
 
 
 /*****************************
@@ -90,8 +88,30 @@ int main(int argc, const char *argv[])
     exit(1);
   }
 
+  // Construct the output filename
+  time_t UtcTimeInSecondsSinceTheEpoch;                 // Starting in Linux 5.6 and glibc 2.33, time_t is be 64 bits.
+  struct tm *tmLocal;
+  char sTime[80];
+  time(&UtcTimeInSecondsSinceTheEpoch);                 // Current time
+  tmLocal = localtime(&UtcTimeInSecondsSinceTheEpoch);  // In local time
+
+  strftime(sTime, sizeof(sTime), "%Y%m%d_%H%M%S", tmLocal);
+
+  std::string sOutputFileName = string("rtc_udp_") + sTime + ".out";
+  
+  // Open the file
+  std::ofstream OutputFile(sOutputFileName);
+  if (!OutputFile) {
+     std::cerr<<"Cannot open the output file " << sOutputFileName << std::endl;
+     exit(1);
+  }
+
+
   tServerList ServerList(iFirstPort, iLastPort, iThreadPriority);
   ServerList.ProcessTelemetry();
+
+
+  OutputFile.close();
 
   return 0;
 }
