@@ -25,6 +25,7 @@ using namespace std;
 
 const char *sDataSetNames[] = { "TOTAL LATENCY", "RCVR KERNEL LATENCY", "SNDR KERNEL LATENCY", "NETWORK LATENCY" };
 
+double gHistBins[ACCUMULATOR_NBINS+1];
 
 /***************************************************
 * Static member initialization
@@ -47,6 +48,8 @@ tSampleStats::tSampleStats() :
                { tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS },
                { tag::density::cache_size=2, tag::density::num_bins=ACCUMULATOR_NBINS } }
 {
+  std::size_t i;
+
   // This is a kludge to force the accumulators' bins to be where we want.  We
   // stuff in a pair of fake samples at the extremes we want.  This will mess up
   // the min, max, and mean.  We will accumulator our our min and max, and we
@@ -56,6 +59,15 @@ tSampleStats::tSampleStats() :
     _AccLatency[i](ACCUMULATOR_MAX_MS); 
     _dLatencyMin[i] =  999999999999999.0;
     _dLatencyMax[i] = -10000.0;
+  }
+
+  // Copy the histbins from the accumulator to the global variable
+  // This will get done over and over as each tSampleStats is constructed,
+  // but that's fine.
+  tBoostHistogram Histogram = density(_AccLatency[0]);
+
+  for (i=1; i<Histogram.size(); i++) {
+    gHistBins[i-1] = Histogram[i].first;
   }
 
   _nMismatches = 0;
@@ -119,13 +131,13 @@ void tSampleStats::AccumulateSample(const double dLatencyMicroseconds[LM_NUM_MEA
 *    
 */
 
-void tSampleStats::ComputeCorrectedStats()
+const tCorrectedStats &tSampleStats::ComputeCorrectedStats(LATENCY_MEASUREMENT_TYPE lmType)
 {
   std::unique_lock lock(_AccumulatorMutex);
 
-  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-    _CorrectedStats[i] = tCorrectedStats(_AccLatency[i], _dLatencyMin[i], _dLatencyMax[i]);
-  }
+  _CorrectedStats[lmType].Initialize(_AccLatency[lmType], _dLatencyMin[lmType], _dLatencyMax[lmType]);
+
+  return _CorrectedStats[lmType];
 }
 
 
@@ -141,6 +153,8 @@ void tSampleStats::ComputeCorrectedStats()
 
 void tSampleStats::PrintStats()
 {
+  #if 0
+  
   int i;
 
   if (extract::count(_AccLatency[LM_TOTAL]) < 3) return;
@@ -158,18 +172,20 @@ void tSampleStats::PrintStats()
   cout << std::fixed << setprecision(2);
 
   for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-    cout << cStats._HistBins[i] << " ";
+    cout << gHistBins[i] << " ";
   }
   cout << endl;
   for (i=0; i<= ACCUMULATOR_NBINS; i++) {
     cout << cStats._HistCounts[i] << " ";
   }
   cout << endl;
+
+  #endif
 }
 
 
 /***************************************************
-* tCorrectedStats::tCorrectedStats
+* tCorrectedStats::Initialize
 *
 * This fixes up the accumulator states to remove the effect of the dummy samples
 * that we injected into the accumulator at construction in order to set its 
@@ -179,11 +195,12 @@ void tSampleStats::PrintStats()
 *    
 */
 
-tCorrectedStats::tCorrectedStats(const tSampleAccumulator &Acc, double dMin, double dMax) :
-  _dMin(dMin),
-  _dMax(dMax)
+void tCorrectedStats::Initialize(const tSampleAccumulator &Acc, double dMin, double dMax)
 {
   std::size_t i;
+
+  _dMin = dMin;
+  _dMax = dMax;
 
   // Adjust the mean to remove the two samples we stuffed in at the beginning in order to set the bin size
   double dOriginalMean  =           mean(Acc);
@@ -198,13 +215,12 @@ tCorrectedStats::tCorrectedStats(const tSampleAccumulator &Acc, double dMin, dou
     tBoostHistogram Histogram = density(Acc);
 
     for (i=1; i<Histogram.size(); i++) {
-      _HistBins[i-1]   = Histogram[i].first;
       _HistCounts[i-1] = iOriginalCount * Histogram[i].second;
     }
 
     // Remove the dummy samples from the histogram
-    _HistCounts[0]                -= 1;
-    _HistCounts[ACCUMULATOR_NBINS] -=1 ;
+    _HistCounts[0]                 -= 1;
+    _HistCounts[ACCUMULATOR_NBINS] -= 1;
   }
 }
 
@@ -217,7 +233,7 @@ tCorrectedStats::tCorrectedStats(const tSampleAccumulator &Acc, double dMin, dou
 *    
 */
 
-tCorrectedStatsSummer::tCorrectedStatsSummer(const double HistBins[ACCUMULATOR_NBINS+1])
+tCorrectedStatsSummer::tCorrectedStatsSummer()
 {
   int i;
 
@@ -226,9 +242,7 @@ tCorrectedStatsSummer::tCorrectedStatsSummer(const double HistBins[ACCUMULATOR_N
   _dMin   =  999999999999999.0;
   _dMax   = -10000.0;
 
-  for (i=0; i<=ACCUMULATOR_NBINS; i++) {
-    _HistBins[i] = HistBins[i];
-  }
+  for (i=0; i<=ACCUMULATOR_NBINS; i++)  _HistCounts[i] = 0;
 }
 
 
@@ -333,7 +347,7 @@ void tCorrectedStatsSummer::Print()
     cout << std::fixed << setprecision(2);
     int i;
     for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-      cout << _HistBins[i] << " ";
+      cout << gHistBins[i] << " ";
     }
     cout << endl;
     for (i=0; i<= ACCUMULATOR_NBINS; i++) {
@@ -341,9 +355,10 @@ void tCorrectedStatsSummer::Print()
     }
     cout << endl;
   #endif
-
   PrintHistogram();
   PrintHistogram(10);
+
+  cout << endl;
 }
 
 
@@ -596,35 +611,13 @@ void tSamplePrinter::RemoveLogger(tSampleLogger *pLoggerToRemove)
 * INPUTS:
 */
 
-void tSamplePrinter::AccumulateStats()
+void tSamplePrinter::AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY_MEASUREMENT_TYPE lmType)
 {
-  const double *pHistBins = NULL;
-  // The HistBins are the sample for all measurements of all loggers
-  tCorrectedStatsSummer StatsSummer[LM_NUM_MEASUREMENTS];
-
   // Loop over all the loggers in our list
   for (auto & pLogger : _SampleLoggerList) {
-    pLogger->ComputeCorrectedStats();
-
-    // This only has to be done once, but it can't be done until ComputeCorrectedStats has been called
-    // at least once, so we do it here.
-    if (pHistBins == NULL) {
-      pHistBins = _SampleLoggerList.front()->_Stats.HistBins();
-      for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-        StatsSummer[i] = tCorrectedStatsSummer(pHistBins);
-      }
-    }
-
-    // Now sum the stats
-    for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-      StatsSummer[i].Accumulate(pLogger->_Stats.CorrectedStats((LATENCY_MEASUREMENT_TYPE) i));
-    }
+    StatsSummer.Accumulate(pLogger->ComputeCorrectedStats(lmType));
   }
-   
-  for (int i = 0; i<1; i++) { //LM_NUM_MEASUREMENTS; i++) {
-    cout << string(20,' ') << "*** " << sDataSetNames[i] << " ***";
-    StatsSummer[i].Print();
-  }
+
 }
 
 
@@ -636,7 +629,15 @@ void tSamplePrinter::AccumulateStats()
 
 void tSamplePrinter::PrintAccumulatedStats()
 {
-  AccumulateStats();
+  // The HistBins are the sample for all measurements of all loggers
+  tCorrectedStatsSummer StatsSummer[LM_NUM_MEASUREMENTS];
+
+  // Sum the stats for each stats type
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+    AccumulateStats(StatsSummer[i], (LATENCY_MEASUREMENT_TYPE) i);
+    cout << string(20,' ') << "*** " << sDataSetNames[i] << " ***" << endl;
+    StatsSummer[i].Print();
+  }
 
 
 }

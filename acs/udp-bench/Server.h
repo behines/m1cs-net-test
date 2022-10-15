@@ -108,14 +108,13 @@ struct tLatencySample {
 
 struct tCorrectedStats {
   tCorrectedStats() {}
-  tCorrectedStats(const tSampleAccumulator &Acc, double dMin, double dMax);
+  void Initialize(const tSampleAccumulator &Acc, double dMin, double dMax);
 
   int    _iCount;
   double _dMin;
   double _dMax;
   double _dMean;
   double _dMedian;
-  double _HistBins  [ACCUMULATOR_NBINS+1];
   int    _HistCounts[ACCUMULATOR_NBINS+1];
 };
 
@@ -127,8 +126,7 @@ struct tCorrectedStats {
 */
 
 struct tCorrectedStatsSummer {
-  tCorrectedStatsSummer() {}
-  tCorrectedStatsSummer(const double HistBins[ACCUMULATOR_NBINS+1]);
+  tCorrectedStatsSummer();
 
   void Accumulate(const tCorrectedStats &Stats);
   void Print();
@@ -140,7 +138,6 @@ struct tCorrectedStatsSummer {
   double             _dMax;
   tMedianAccumulator _MedianAccumulator;
 
-  double             _HistBins  [ACCUMULATOR_NBINS+1];
   int                _HistCounts[ACCUMULATOR_NBINS+1];
 };
 
@@ -162,12 +159,9 @@ public:
   tSampleStats(const tSampleStats &) = delete;   
   tSampleStats& operator=(const tSampleStats &) = delete;
 
-  // This method won't work until you've called ComputeCorrectedStats the first time
-  const double *HistBins() { return _CorrectedStats[LM_TOTAL]._HistBins; }
-
   void AccumulateSample(const double dLatencyMicroseconds[LM_NUM_MEASUREMENTS], bool bMismatch, bool bDropped);
 
-  void ComputeCorrectedStats();
+  const tCorrectedStats &ComputeCorrectedStats(LATENCY_MEASUREMENT_TYPE lmType);
   const tCorrectedStats &CorrectedStats(LATENCY_MEASUREMENT_TYPE lmType) { return _CorrectedStats[lmType]; }
 
   void PrintStats();
@@ -200,7 +194,7 @@ public:
   long int TAIOffset();
   struct timeval TAI_to_UTC(const struct timeval &tv_TAI);
 
-  void AccumulateStats();
+  void AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY_MEASUREMENT_TYPE lmType);
   void PrintAccumulatedStats();
 
 protected:
@@ -233,7 +227,7 @@ public:
   ~tSampleLogger();
 
   void DrainSampleQueue();
-  void ComputeCorrectedStats() { _Stats.ComputeCorrectedStats(); }
+  const tCorrectedStats& ComputeCorrectedStats(LATENCY_MEASUREMENT_TYPE lmType) { return _Stats.ComputeCorrectedStats(lmType); }
 
   void ProcessSample(const tLatencySample &Sample);
   void PrintSample(const struct timeval &tmSent,
