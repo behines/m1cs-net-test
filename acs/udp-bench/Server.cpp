@@ -97,7 +97,7 @@ void tSampleStats::AccumulateSample(const double dLatencyMicroseconds[LM_NUM_MEA
 
   for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
   
-    _AccLatency[i](dLatencyMicroseconds[i]/100);
+    _AccLatency[i](dLatencyMicroseconds[i]/1000);
 
     if (dLatencyMicroseconds[i] < _dLatencyMin[i]) _dLatencyMin[i] = dLatencyMicroseconds[i];
     if (dLatencyMicroseconds[i] > _dLatencyMax[i]) _dLatencyMax[i] = dLatencyMicroseconds[i];
@@ -263,7 +263,7 @@ void tCorrectedStatsSummer::Accumulate(const tCorrectedStats &Stats)
 void tCorrectedStatsSummer::Print()
 {
   int i;
-  
+
   if (_iCount < 1) return;
 
   cout << std::fixed << setprecision(0);

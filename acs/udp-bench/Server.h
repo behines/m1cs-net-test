@@ -48,8 +48,8 @@
 
 #define IP_ADDRESS_MAX_LEN_IN_CHARS (45)
 
-#define ACCUMULATOR_NBINS      (15  )
-#define ACCUMULATOR_MS_PER_BIN ( 0.1)
+#define ACCUMULATOR_NBINS      (50  )
+#define ACCUMULATOR_MS_PER_BIN ( 0.2)
 #define ACCUMULATOR_MAX_MS     (ACCUMULATOR_NBINS*ACCUMULATOR_MS_PER_BIN)
 
 using namespace boost::accumulators;
