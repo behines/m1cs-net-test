@@ -163,7 +163,7 @@ void tSampleStats::Print(LATENCY_MEASUREMENT_TYPE lmType, std::ostream &strm)
 
   strm << std::fixed << setprecision(0);
   strm << "Count: " << cStats._iCount << " Min: " << _dLatencyMin[lmType] << " Max: " << _dLatencyMax[lmType]
-          << setprecision(2) << " Mean: " << cStats._dMean  << " Median: " << cStats._dMedian
+          << setprecision(3) << " Mean: " << cStats._dMean  << " Median: " << cStats._dMedian
           << " Mismatches: " << _nMismatches << " Dropped: " << _nDropped
           <<  endl;
 
@@ -171,7 +171,6 @@ void tSampleStats::Print(LATENCY_MEASUREMENT_TYPE lmType, std::ostream &strm)
     strm << cStats._HistCounts[i] << " ";
   }
   strm << endl;
-
 }
 
 
@@ -325,9 +324,23 @@ void tCorrectedStatsSummer::PrintHistogram(double dLogBase,std::ostream &strm)
 *    
 */
 
-void tCorrectedStatsSummer::Print(bool bLog, std::ostream &strm)
+void tCorrectedStatsSummer::Print(bool bLog, bool bIncludeCounts, bool bIncludePlot, std::ostream &strm)
 {
   if (_iCount < 1) return;
+
+  if (bIncludeCounts) {
+    strm << std::fixed << setprecision(2);
+    int i;
+    strm << "Bins: ";
+    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+      strm << gHistBins[i] << " ";
+    }
+    strm << endl << "Counts: ";
+    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
+      strm << _HistCounts[i] << " ";
+    }
+    strm << endl << endl;
+  }
 
   // Mean and Median are in milliseconds, like the histogram
   strm << std::fixed << setprecision(0);
@@ -335,21 +348,12 @@ void tCorrectedStatsSummer::Print(bool bLog, std::ostream &strm)
        << setprecision(1) << "us Mean: " << 1000*_dSum/_iCount  << "us Median: " << 1000*median(_MedianAccumulator) << "us"
        << endl;
 
-  #if 0
-    strm << std::fixed << setprecision(2);
-    int i;
-    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-      strm << gHistBins[i] << " ";
-    }
-    strm << endl;
-    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-      strm << _HistCounts[i] << " ";
-    }
-    strm << endl;
-  #endif
 
-  if (bLog)   PrintHistogram(HISTOGRAM_LOGPLOT_BASE, strm);
-  else        PrintHistogram(0, strm);
+
+  if (bIncludePlot) {
+    if (bLog)   PrintHistogram(HISTOGRAM_LOGPLOT_BASE, strm);
+    else        PrintHistogram(0, strm);
+  }
 
   strm << endl;
 }
@@ -364,6 +368,7 @@ void tCorrectedStatsSummer::Print(bool bLog, std::ostream &strm)
 
 tSampleLogger::tSampleLogger(int iPortNum) :
   _SampleQueue(SAMPLE_QUEUE_BUFFER_DEPTH),
+  _bHasEverLoggedData(false),
   _iPortNum(iPortNum)
 {
   _SamplePrinter.AddLogger(this);
@@ -383,6 +388,7 @@ tSampleLogger::tSampleLogger(int iPortNum) :
 
 tSampleLogger::tSampleLogger(tSampleLogger &&other) noexcept :
   _SampleQueue(std::move(other._SampleQueue)),
+  _bHasEverLoggedData   (other._bHasEverLoggedData),
   _iPortNum             (other._iPortNum)
 {
   _SamplePrinter.RemoveLogger(&other);
@@ -412,6 +418,9 @@ void tSampleLogger::LogSample(int nRcvdByServer, int nSentByClient, struct timev
 {
   std::lock_guard<std::mutex> cvLock(_SampleQueueMutex);
   _SampleQueue.push_back(tLatencySample(nRcvdByServer, nSentByClient, tmRcv, tmSent, tmHwRcv_TAI, tmHwSentPrevious_TAI, ClientAddress));
+
+  _bHasEverLoggedData = true;
+
   // When using boost, we can query how full the buffer is and wait until it is half full before printing anything, to reduce thread thrashing
 
   #if 0
@@ -547,7 +556,8 @@ void tSampleLogger::PrintSample(const struct timeval &tmSent,
 * INPUTS:
 */
 
-tSamplePrinter::tSamplePrinter()
+tSamplePrinter::tSamplePrinter() :
+  _bExit(false)
 {
   // Construct the output filenames
   time_t UtcTimeInSecondsSinceTheEpoch;                 // Starting in Linux 5.6 and glibc 2.33, time_t is be 64 bits.
@@ -650,11 +660,12 @@ void tSamplePrinter::RemoveLogger(tSampleLogger *pLoggerToRemove)
 
 void tSamplePrinter::AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY_MEASUREMENT_TYPE lmType)
 {
-  // Loop over all the loggers in our list
+  // Loop over all the active loggers in our list
   for (auto & pLogger : _SampleLoggerList) {
-    StatsSummer.Accumulate(pLogger->ComputeCorrectedStats(lmType));
+    if (pLogger->HasEverLoggedData()) {
+      StatsSummer.Accumulate(pLogger->ComputeCorrectedStats(lmType));
+    }
   }
-
 }
 
 
@@ -664,16 +675,16 @@ void tSamplePrinter::AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY
 * INPUTS:
 */
 
-void tSamplePrinter::PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog, std::ostream &strm)
+void tSamplePrinter::PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog, bool bIncludeCounts, bool bIncludePlot, std::ostream &strm)
 {
   // The HistBins are the sample for all measurements of all loggers
-  tCorrectedStatsSummer StatsSummer[LM_NUM_MEASUREMENTS];
+  tCorrectedStatsSummer StatsSummer;
 
   // Sum the stats for each stats type
-  AccumulateStats(StatsSummer[lmType], lmType);
+  AccumulateStats(StatsSummer, lmType);
 
   strm << string(55,' ') << "*** " << sDataSetNames[lmType] << " ***" << endl;
-  StatsSummer[lmType].Print(bLog, strm);
+  StatsSummer.Print(bLog, bIncludeCounts, bIncludePlot, strm);
 }
 
 
@@ -691,21 +702,21 @@ void tSamplePrinter::SamplePrintingEndlessLoop()
   auto  DrainTime = chrono::system_clock::now();
   chrono::duration<int, std::milli> DrainIntervalInMs(SAMPLE_QUEUE_DRAIN_PERIOD_MS);  
 
-  while (1) {
-
-
+  while (!_bExit) {
     for (i=0; i<iLoopsPerPrintPeriod; i++) {
       // We allow the queues to get about half full
       DrainTime += DrainIntervalInMs;
       std::this_thread::sleep_until(DrainTime);
 
-      // Loop over all the loggers in our list
+      // Loop over all the active loggers in our list
       for (auto & pLogger : _SampleLoggerList) {
-        pLogger->DrainSampleQueue();
+        if (pLogger->HasEverLoggedData()) {
+          pLogger->DrainSampleQueue();
+        }
       }
     }
 
-    PrintAccumulatedStats(LM_TOTAL, true, std::cout);
+    PrintAccumulatedStats(LM_TOTAL, true, false, true, std::cout);
   }
 }
 
@@ -718,39 +729,44 @@ void tSamplePrinter::SamplePrintingEndlessLoop()
 
 void tSamplePrinter::OutputFinalReport()
 {
+  int i;
+
   cout << "Writing output files..." << endl;
 
-  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+  // Inform the Printing thread that it should exit and then wrap it up
+  _bExit = true;
+  
+  for (i=0; i<LM_NUM_MEASUREMENTS; i++) {
     // Print Summary Stats to file
     _LatencyDataFile[i] << "***Summary Stats***" << endl;
-    _LatencyDataFile[i] << "Bins: " ;
-    for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-     _LatencyDataFile[i] << gHistBins[i] << " ";
-    }
-    _LatencyDataFile[i] << endl;
-
-    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true, _LatencyDataFile[i]);
+    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true, true, false, _LatencyDataFile[i]);
 
     // Print individual connection stats to file
     _LatencyDataFile[i] << "***Per-Connection Stats***" << endl;
     for (auto & pLogger : _SampleLoggerList) {
-      _LatencyDataFile[i] << pLogger->_sSourceIpString << " : ";
-      pLogger->_Stats.Print((LATENCY_MEASUREMENT_TYPE) i, _LatencyDataFile[i]);
+      if (pLogger->HasEverLoggedData()) {
+        _LatencyDataFile[i] << pLogger->_sSourceIpString << " : ";
+        pLogger->_Stats.Print((LATENCY_MEASUREMENT_TYPE) i, _LatencyDataFile[i]);
+      }
     } 
     _LatencyDataFile[i].close();
   }
 
   // Print plots to file
   _PlotFile << "****** LINEAR PLOTS ******" << endl << endl;
-  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, false,  _PlotFile);
+  for (i=0; i<LM_NUM_MEASUREMENTS; i++) {
+    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, false, false, true, _PlotFile);
   }
   _PlotFile << endl << endl << " ****** LOG PLOTS ******" << endl << endl;
-  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true,  _PlotFile);
+  for (i=0; i<LM_NUM_MEASUREMENTS; i++) {
+    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true, false, true, _PlotFile);
   }
   _PlotFile.close();
-    cout << "Done.  Goodbye." << endl;
+
+  // Inform the Printing thread that it should exit and then wrap it up
+  cout << endl << "Exiting.  You can ignore the upcoming message 'terminate called without an active exception'." << endl << endl;
+
+  cout << "Done.  Goodbye." << endl << endl;
 }
 
 
@@ -922,7 +938,7 @@ int tServerList::ProcessTelemetry()
 
   /* Wait for a signal to arrive. */
   sigwait(&sigset, &sig);
-  cout << "Ctrl-C, exiting..." << endl;
+  cout << endl << "Ctrl-C, exiting..." << endl;
 
   for (auto & Server : _ServerList) {
     if (Server.IsRunning())  Server.StopThread(true);
@@ -933,11 +949,10 @@ int tServerList::ProcessTelemetry()
   return 0;
 }
 
+
 /***************************************************
 * tServerList::OutputFinalReport
 *
-* 
-*    
 */
 
 void tServerList::OutputFinalReport()

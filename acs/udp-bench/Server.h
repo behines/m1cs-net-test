@@ -132,7 +132,7 @@ struct tCorrectedStatsSummer {
   tCorrectedStatsSummer();
 
   void Accumulate(const tCorrectedStats &Stats);
-  void Print(bool bLog, std::ostream &strm = std::cout);
+  void Print(bool bLog, bool bIncludeCounts, bool bIncludePlot, std::ostream &strm = std::cout);
   void PrintHistogram(double dLogBase = 0.0, std::ostream &strm = std::cout);
 
   int                _iCount;
@@ -198,7 +198,7 @@ public:
   struct timeval TAI_to_UTC(const struct timeval &tv_TAI);
 
   void AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY_MEASUREMENT_TYPE lmType);
-  void PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog, std::ostream &strm = std::cout);
+  void PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog, bool bIncludeCounts, bool bIncludePlot, std::ostream &strm = std::cout);
 
   void OutputFinalReport();
 
@@ -211,6 +211,8 @@ protected:
   struct timeval             _tvTaiOffset;
   std::ofstream              _LatencyDataFile[LM_NUM_MEASUREMENTS];
   std::ofstream              _PlotFile;
+
+  bool                       _bExit;
 };
 
 
@@ -246,6 +248,8 @@ public:
   void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
                  struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress);
 
+  bool HasEverLoggedData() { return _bHasEverLoggedData; }
+
   static void OutputFinalReport() { _SamplePrinter.OutputFinalReport(); }
 
 protected:
@@ -258,6 +262,7 @@ protected:
   // Mutex to allow queue-draining method to coordinate with realtime thread
   std::mutex              _SampleQueueMutex;
 
+  bool                    _bHasEverLoggedData;
   tLatencySample          _PreviousSample;
   char                    _sSourceIpString[IP_ADDRESS_MAX_LEN_IN_CHARS];
 
