@@ -559,6 +559,17 @@ void tSampleLogger::PrintSample(const struct timeval &tmSent,
 tSamplePrinter::tSamplePrinter() :
   _bExit(false)
 {
+}
+
+
+/***************************************************
+* tSamplePrinter::Start
+*
+* INPUTS:
+*/
+
+void tSamplePrinter::Start()
+{
   // Construct the output filenames
   time_t UtcTimeInSecondsSinceTheEpoch;                 // Starting in Linux 5.6 and glibc 2.33, time_t is be 64 bits.
   struct tm *tmLocal;
@@ -929,6 +940,9 @@ int tServerList::ProcessTelemetry()
     cerr << "** Warning: Some threads not created with desired attributes **" << endl;
     cerr << "   You probably need to run as root." << endl;
   }
+
+  // Start the sample printer going
+  tSampleLogger::StartSamplePrinter();
 
   // Wait for Ctrl-C
   /* Set up the mask of signals to temporarily block. */

@@ -191,6 +191,8 @@ class tSamplePrinter {
 public:
   tSamplePrinter();
 
+  void Start();
+
   void AddLogger   (tSampleLogger *pLogger);
   void RemoveLogger(tSampleLogger *pLoggerToRemove);
 
@@ -250,7 +252,8 @@ public:
 
   bool HasEverLoggedData() { return _bHasEverLoggedData; }
 
-  static void OutputFinalReport() { _SamplePrinter.OutputFinalReport(); }
+  static void StartSamplePrinter() { _SamplePrinter.Start();             }
+  static void OutputFinalReport()  { _SamplePrinter.OutputFinalReport(); }
 
 protected:
   #ifdef  USE_BOOST_CIRCULAR_BUFFER
