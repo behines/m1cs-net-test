@@ -128,9 +128,9 @@ public:
 
 protected:
   tSampleAccumulator _AccTotalLatency;
-  double _dTotalLatencyMin, _dTotalLatencyMax;
-  int    _nMismatches;
-  int    _nDropped;
+  double             _dTotalLatencyMin, _dTotalLatencyMax;
+  int                _nMismatches;
+  int                _nDropped;
 
 };
 

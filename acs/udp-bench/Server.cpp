@@ -107,6 +107,8 @@ void tSampleStats::PrintStats()
 {
   int i;
 
+  if (extract::count(_AccTotalLatency) < 3) return;
+
   tCorrectedStats cStats(_AccTotalLatency, _dTotalLatencyMin, _dTotalLatencyMax);
 
   cout << std::fixed << setprecision(0);
@@ -133,6 +135,9 @@ void tSampleStats::PrintStats()
 /***************************************************
 * tCorrectedStats::tCorrectedStats
 *
+* This fixes up the accumulator states to remove the effect of the dummy samples
+* that we injected into the accumulator at construction in order to set its 
+* bins.
 *
 * INPUTS:
 *    
@@ -160,6 +165,10 @@ tCorrectedStats::tCorrectedStats(tSampleAccumulator &Acc, double dMin, double dM
       _HistBins[i-1]   = Histogram[i].first;
       _HistCounts[i-1] = iOriginalCount * Histogram[i].second;
     }
+
+    // Remove the dummy samples from the histogram
+    _HistCounts[0]                -= 1;
+    _HistCounts[ACCUMULATOR_NBINS] -=1 ;
   }
 }
 
