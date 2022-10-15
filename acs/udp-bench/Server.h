@@ -33,13 +33,14 @@
 */
 
 
-#define STATS_PRINT_PERIOD_SECONDS ( 5)
-#define HISTOGRAM_PRINT_HEIGHT     (10)
+#define STATS_PRINT_PERIOD_SECONDS   ( 5)
+#define HISTOGRAM_PRINT_HEIGHT       (20)
+#define HISTOGRAM_LOGPLOT_BASE       (50)
 
-#define ACCUMULATOR_NBINS            (50  )
-#define ACCUMULATOR_MS_PER_BIN       ( 0.2)
+#define ACCUMULATOR_NBINS            (100   )
+#define ACCUMULATOR_MS_PER_BIN       (  0.25)
 #define ACCUMULATOR_MAX_MS           (ACCUMULATOR_NBINS*ACCUMULATOR_MS_PER_BIN)
-#define HISTOGRAM_TICK_MARK_INTERVAL (1.0)
+#define HISTOGRAM_TICK_MARK_INTERVAL (  1.0 )
 
 
 /***************************************

@@ -296,7 +296,7 @@ void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
   }
 
   cout << endl << setprecision(0);
-  for (i=HISTOGRAM_PRINT_HEIGHT-1; i>=0; i--) {
+  for (i=HISTOGRAM_PRINT_HEIGHT; i>=0; i--) {
     dThresh = ((double)i) * dMaxBinValue / HISTOGRAM_PRINT_HEIGHT;
     cout << setw(8) <<  (bDoLog ? (int) pow(dLogBase,dThresh) : dThresh);
     std::string sRow = " ";
@@ -339,8 +339,8 @@ void tCorrectedStatsSummer::Print()
 
   // Mean and Median are in milliseconds, like the histogram
   cout << std::fixed << setprecision(0);
-  cout << "      Count: " << _iCount << " Min: " << _dMin << " Max: " << _dMax
-       << setprecision(2) << " Mean: " << 1000*_dSum/_iCount  << " Median: " << 1000*median(_MedianAccumulator)
+  cout << "      Count: " << _iCount << " Min: " << _dMin << "us Max: " << _dMax
+       << setprecision(1) << "us Mean: " << 1000*_dSum/_iCount  << "us Median: " << 1000*median(_MedianAccumulator) << "us"
        << endl;
 
   #if 0
@@ -355,8 +355,8 @@ void tCorrectedStatsSummer::Print()
     }
     cout << endl;
   #endif
-  PrintHistogram();
-  PrintHistogram(10);
+
+  PrintHistogram(HISTOGRAM_LOGPLOT_BASE);
 
   cout << endl;
 }
@@ -375,8 +375,6 @@ tSampleLogger::tSampleLogger(int iPortNum) :
 {
   _SamplePrinter.AddLogger(this);
 }
-
-
 
 
 /***************************************************
@@ -399,10 +397,13 @@ tSampleLogger::tSampleLogger(tSampleLogger &&other) noexcept :
 }
 
 
+/***************************************************
+* tSampleLogger destructor
+*
+*/
 
 tSampleLogger::~tSampleLogger() 
 {
-  // _thread.join(); 
 }
 
 
@@ -635,8 +636,6 @@ void tSamplePrinter::PrintAccumulatedStats()
   // Sum the stats for each stats type
   for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
     AccumulateStats(StatsSummer[i], (LATENCY_MEASUREMENT_TYPE) i);
-    cout << string(20,' ') << "*** " << sDataSetNames[i] << " ***" << endl;
-    StatsSummer[i].Print();
   }
 
   for (int i = 0; i<1; i++) {
