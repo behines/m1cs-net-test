@@ -277,7 +277,7 @@ void tCorrectedStatsSummer::Accumulate(const tCorrectedStats &Stats)
 *   iLogBase - pass in 0 for linear, a base for varying degrees of loggy-ness
 */
 
-void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
+void tCorrectedStatsSummer::PrintHistogram(double dLogBase,std::ostream &strm)
 {
   int    i, j;
   double dMaxBinValue = 0.0;
@@ -295,21 +295,21 @@ void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
     if (dHistCounts[i] > dMaxBinValue)  dMaxBinValue = dHistCounts[i];
   }
 
-  cout << endl << setprecision(0);
+  strm << endl << setprecision(0);
   for (i=HISTOGRAM_PRINT_HEIGHT; i>=0; i--) {
     dThresh = ((double)i) * dMaxBinValue / HISTOGRAM_PRINT_HEIGHT;
-    cout << setw(8) <<  (bDoLog ? (int) pow(dLogBase,dThresh) : dThresh);
-    std::string sRow = " ";
+    strm << setw(8) <<  (bDoLog ? (int) pow(dLogBase,dThresh) : dThresh);
+    std::string sRow = " | ";
     for (j=0; j<=ACCUMULATOR_NBINS; j++) {
       sRow += (dHistCounts[j] > dThresh) ? 'X' : ' ';
     }
-    cout << sRow << endl;
+    strm << sRow << endl;
   }
 
 
   // Print horizontal axis
-  cout <<            "         " + string(ACCUMULATOR_NBINS, '-') << endl;
-  std::string sRow = "        0";
+  strm <<            "         |" + string(ACCUMULATOR_NBINS+1, '-') << endl;
+  std::string sRow = "          0";
   dThresh = HISTOGRAM_TICK_MARK_INTERVAL * 0.99;
   for (i=0; i<ACCUMULATOR_NBINS; i++) {
     xVal = ((double)i) * ACCUMULATOR_MS_PER_BIN;
@@ -322,8 +322,8 @@ void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
       sRow += ' ';
     }
   }
-  cout << sRow << endl 
-       << "                             Latency (ms)" << endl << endl;
+  strm << sRow << endl 
+       << "                                               Latency (ms)" << endl << endl;
 }
 
 
@@ -334,33 +334,33 @@ void tCorrectedStatsSummer::PrintHistogram(double dLogBase)
 *    
 */
 
-void tCorrectedStatsSummer::Print(bool bLog)
+void tCorrectedStatsSummer::Print(bool bLog, std::ostream &strm)
 {
   if (_iCount < 1) return;
 
   // Mean and Median are in milliseconds, like the histogram
-  cout << std::fixed << setprecision(0);
-  cout << "                      Count: " << _iCount << " Min: " << _dMin << "us Max: " << _dMax
+  strm << std::fixed << setprecision(0);
+  strm << "                                 Count: " << _iCount << " Min: " << _dMin << "us Max: " << _dMax
        << setprecision(1) << "us Mean: " << 1000*_dSum/_iCount  << "us Median: " << 1000*median(_MedianAccumulator) << "us"
        << endl;
 
   #if 0
-    cout << std::fixed << setprecision(2);
+    strm << std::fixed << setprecision(2);
     int i;
     for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-      cout << gHistBins[i] << " ";
+      strm << gHistBins[i] << " ";
     }
-    cout << endl;
+    strm << endl;
     for (i=0; i<= ACCUMULATOR_NBINS; i++) {
-      cout << _HistCounts[i] << " ";
+      strm << _HistCounts[i] << " ";
     }
-    cout << endl;
+    strm << endl;
   #endif
 
   if (bLog)   PrintHistogram(HISTOGRAM_LOGPLOT_BASE);
   else        PrintHistogram(0);
 
-  cout << endl;
+  strm << endl;
 }
 
 
@@ -499,8 +499,8 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
     //            _PreviousSample._nRcvdByServer, _PreviousSample._nSentByClient);
 
     dLatency[LM_TOTAL  ] = tmDiff             .tv_sec*1.0e6 + tmDiff             .tv_usec;
-    dLatency[LM_SERVER ] = tmRcvKernelLatency .tv_sec*1.0e6 + tmRcvKernelLatency .tv_usec;
-    dLatency[LM_CLIENT ] = tmSendKernelLatency.tv_sec*1.0e6 + tmSendKernelLatency.tv_usec;
+    dLatency[LM_RCVR   ] = tmRcvKernelLatency .tv_sec*1.0e6 + tmRcvKernelLatency .tv_usec;
+    dLatency[LM_SENDER ] = tmSendKernelLatency.tv_sec*1.0e6 + tmSendKernelLatency.tv_usec;
     dLatency[LM_NETWORK] = tmNetworkLatency   .tv_sec*1.0e6 + tmNetworkLatency   .tv_usec;
 
     bMismatch = (_PreviousSample._nRcvdByServer != _PreviousSample._nSentByClient);
@@ -558,6 +558,49 @@ void tSampleLogger::PrintSample(const struct timeval &tmSent,
 
 tSamplePrinter::tSamplePrinter()
 {
+  // Construct the output filenames
+  time_t UtcTimeInSecondsSinceTheEpoch;                 // Starting in Linux 5.6 and glibc 2.33, time_t is be 64 bits.
+  struct tm *tmLocal;
+  char sTime[80];
+  time(&UtcTimeInSecondsSinceTheEpoch);                 // Current time
+  tmLocal = localtime(&UtcTimeInSecondsSinceTheEpoch);  // In local time
+
+  strftime(sTime, sizeof(sTime), "%Y%m%d_%H%M%S", tmLocal);
+
+  std::string sFileName;
+  
+  // Open the files
+
+  sFileName = string("rtc_udp_") + sTime + ".total";
+  _LatencyDataFile[LM_TOTAL].open(sFileName);
+  if (!_LatencyDataFile[LM_TOTAL]) {
+     throw std::runtime_error("Cannot open the data output file " + sFileName);
+  }
+
+  sFileName = string("rtc_udp_") + sTime + ".rcv";
+  _LatencyDataFile[LM_RCVR].open(sFileName);
+  if (!_LatencyDataFile[LM_RCVR]) {
+     throw std::runtime_error("Cannot open the data output file " + sFileName);
+  }
+
+  sFileName = string("rtc_udp_") + sTime + ".send";
+  _LatencyDataFile[LM_SENDER].open(sFileName);
+  if (!_LatencyDataFile[LM_SENDER]) {
+     throw std::runtime_error("Cannot open the data output file " + sFileName);
+  }
+
+  sFileName = string("rtc_udp_") + sTime + ".network";
+  _LatencyDataFile[LM_NETWORK].open(sFileName);
+  if (!_LatencyDataFile[LM_NETWORK]) {
+     throw std::runtime_error("Cannot open the data output file " + sFileName);
+  }
+
+  sFileName = string("rtc_udp_") + sTime + ".plot";
+  _PlotFile.open(sFileName);
+  if (!_PlotFile) {
+     throw std::runtime_error("Cannot open the plot output file " + sFileName);
+  }
+  
   struct ntptimeval ntv;
   ntp_gettime(&ntv);
 
@@ -630,7 +673,7 @@ void tSamplePrinter::AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY
 * INPUTS:
 */
 
-void tSamplePrinter::PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog)
+void tSamplePrinter::PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog, std::ostream &strm)
 {
   // The HistBins are the sample for all measurements of all loggers
   tCorrectedStatsSummer StatsSummer[LM_NUM_MEASUREMENTS];
@@ -638,8 +681,8 @@ void tSamplePrinter::PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool
   // Sum the stats for each stats type
   AccumulateStats(StatsSummer[lmType], lmType);
 
-  cout << string(35,' ') << "*** " << sDataSetNames[lmType] << " ***" << endl;
-  StatsSummer[lmType].Print(bLog);
+  strm << string(55,' ') << "*** " << sDataSetNames[lmType] << " ***" << endl;
+  StatsSummer[lmType].Print(bLog, strm);
 }
 
 
@@ -671,10 +714,23 @@ void tSamplePrinter::SamplePrintingEndlessLoop()
       }
     }
 
-    PrintAccumulatedStats(LM_TOTAL);
+    PrintAccumulatedStats(LM_TOTAL, true, std::cout);
   }
 }
 
+
+/***************************************************
+* tSamplePrinter::OutputFinalReport
+*
+* INPUTS:
+*/
+
+void tSamplePrinter::OutputFinalReport()
+{
+  for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
+    PrintAccumulatedStats((LATENCY_MEASUREMENT_TYPE) i, true, std::cout);
+  }
+}
 
 
 /***************************************************
@@ -864,16 +920,6 @@ int tServerList::ProcessTelemetry()
 
 void tServerList::OutputFinalReport()
 {
-  //_SampleLogger
+   tServer::OutputFinalReport();
 }
 
-/***************************************************
-* tServer::OutputFinalReport
-*
-* 
-*    
-*/
-
-//void tServer::OutputFinalReport()
-//{
-//}

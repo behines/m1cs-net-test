@@ -12,6 +12,8 @@
 #include <deque>
 #include <thread>
 #include <mutex>
+#include <fstream>
+#include <iostream>
 #include <condition_variable>
 #include <sys/time.h>
 #include <boost/circular_buffer.hpp>
@@ -35,7 +37,7 @@
 
 #define STATS_PRINT_PERIOD_SECONDS   (10)
 #define HISTOGRAM_PRINT_HEIGHT       (20)
-#define HISTOGRAM_LOGPLOT_BASE       (20)
+#define HISTOGRAM_LOGPLOT_BASE       (10)
 
 #define ACCUMULATOR_NBINS            (100   )
 #define ACCUMULATOR_MS_PER_BIN       (  0.25)
@@ -76,7 +78,7 @@ typedef accumulator_set<double, stats<                       tag::median(with_p_
 typedef boost::iterator_range<std::vector<std::pair<double, double>>::iterator> tBoostHistogram;
 
 
-typedef enum LATENCY_MEASUREMENT_TYPE { LM_TOTAL, LM_SERVER, LM_CLIENT, LM_NETWORK, LM_NUM_MEASUREMENTS } LATENCY_MEASUREMENT_TYPE;
+typedef enum LATENCY_MEASUREMENT_TYPE { LM_TOTAL, LM_RCVR, LM_SENDER, LM_NETWORK, LM_NUM_MEASUREMENTS } LATENCY_MEASUREMENT_TYPE;
 
 /***************************
 * tLatencySample
@@ -130,8 +132,8 @@ struct tCorrectedStatsSummer {
   tCorrectedStatsSummer();
 
   void Accumulate(const tCorrectedStats &Stats);
-  void Print(bool bLog);
-  void PrintHistogram(double dLogBase = 0.0);
+  void Print(bool bLog, std::ostream &strm = std::cout);
+  void PrintHistogram(double dLogBase = 0.0, std::ostream &strm = std::cout);
 
   int                _iCount;
   double             _dSum;
@@ -196,7 +198,9 @@ public:
   struct timeval TAI_to_UTC(const struct timeval &tv_TAI);
 
   void AccumulateStats(tCorrectedStatsSummer &StatsSummer, LATENCY_MEASUREMENT_TYPE lmType);
-  void PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog = true);
+  void PrintAccumulatedStats(LATENCY_MEASUREMENT_TYPE lmType, bool bLog, std::ostream &strm = std::cout);
+
+  void OutputFinalReport();
 
 protected:
   void SamplePrintingEndlessLoop();
@@ -205,6 +209,8 @@ protected:
   std::list<tSampleLogger *> _SampleLoggerList;
 
   struct timeval             _tvTaiOffset;
+  std::ofstream              _LatencyDataFile[LM_NUM_MEASUREMENTS];
+  std::ofstream              _PlotFile;
 };
 
 
@@ -239,6 +245,8 @@ public:
 
   void LogSample(int nRcvdByServer, int nSentByClient, struct timeval &tmRcv, struct timeval &tmSent,
                  struct timeval &tmHwRcv_TAI, struct timeval &tmHwSentPrevious_TAI, struct sockaddr_in &ClientAddress);
+
+  static void OutputFinalReport() { _SamplePrinter.OutputFinalReport(); }
 
 protected:
   #ifdef  USE_BOOST_CIRCULAR_BUFFER
@@ -279,6 +287,8 @@ public:
   ~tServer();
 
   int ProcessIncomingMessages();
+
+  static void OutputFinalReport() { tSampleLogger::OutputFinalReport(); }
 
 protected:
   virtual void *_Thread();
