@@ -34,15 +34,21 @@ public:
   ~tClient();
   
   int SendMessage();
+  void RetrieveLastHardwareTxMessageTimestamp();
+
+  void PrintStats();
 
   const std::string &NetworkDeviceName() { return _UdpClient.NetworkDeviceName(); }
 
 protected:
   //virtual void *_Thread();
-  int           _iPortNum;
-  tUdpClient    _UdpClient;
-  bool          _bDebug;
-  int           _nSent;
+  int            _iPortNum;
+  tUdpClient     _UdpClient;
+  bool           _bDebug;
+  int            _nSent;
+  int            _nMissingTimestamps;
+
+  struct timeval _tvLastMessageTimestamp;
 };
 
 
@@ -88,6 +94,7 @@ public:
   void StartSenderThreads();
   
   int EmitMessagesFromAll();
+  void PrintStatsFromAll();
 
   ~tClientList();
 

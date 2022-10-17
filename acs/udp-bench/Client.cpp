@@ -33,7 +33,8 @@ tClient::tClient(const std::string &sServerIpAddressString, int iPortNum, const 
   _iPortNum(iPortNum),
   _UdpClient(sServerIpAddressString, iPortNum, sClientIpAddressString),
   _bDebug(false),
-  _nSent(0)
+  _nSent(0),
+  _nMissingTimestamps(0)
 {
 }
 
@@ -51,9 +52,21 @@ tClient::tClient(const std::string &sServerIpAddressString, int iPortNum, const 
 tClient::tClient(tClient &&other) noexcept :
   _UdpClient(move(other._UdpClient))
 {
-  _iPortNum = other._iPortNum;
-  _bDebug   = other._bDebug;
-  _nSent    = other._nSent;
+  _iPortNum           = other._iPortNum;
+  _bDebug             = other._bDebug;
+  _nSent              = other._nSent;
+  _nMissingTimestamps = other._nMissingTimestamps;
+}
+
+
+/***************************************************
+* tClient::PrintStats
+*
+*/
+
+void tClient::PrintStats()
+{
+  cout << _UdpClient.NetworkDeviceName() << "(" << _iPortNum << "): " << _nMissingTimestamps << " missing timestamps" << endl;
 }
 
 
@@ -68,6 +81,21 @@ tClient::~tClient()
 
 
 /*****************************
+* tClient::RetrieveLastHardwareTxMessageTimestamp
+*
+* See https://stackoverflow.com/questions/3062205/setting-the-source-ip-for-a-udp-socket 
+* for information on how to set the source address for a UDP message.
+*/
+
+void tClient::RetrieveLastHardwareTxMessageTimestamp()
+{
+  _tvLastMessageTimestamp = _UdpClient.RetrieveLastHardwareTxMessageTimestamp();
+
+  if (_tvLastMessageTimestamp.tv_sec == 0)  ++_nMissingTimestamps;
+}
+
+
+/*****************************
 * tClient::SendMessage
 *
 * See https://stackoverflow.com/questions/3062205/setting-the-source-ip-for-a-udp-socket 
@@ -76,26 +104,26 @@ tClient::~tClient()
 
 int tClient::SendMessage()
 {
-    struct timeval tm;
-    SegRtDataMsg seg_msg;
+  struct timeval tm;
+  SegRtDataMsg seg_msg;
 
-    gettimeofday (&tm, NULL);
-    seg_msg.hdr.time      = tm;
-    seg_msg.hdr.hdr.msgId = ++_nSent;
+  gettimeofday (&tm, NULL);
+  seg_msg.hdr.time      = tm;
+  seg_msg.hdr.hdr.msgId = ++_nSent;
 
-    // Copy the timestamp of the previously transmitted message into the data
-    // Disable GCC warning about unaligned pointer for this pointer assignment
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-      struct timeval *pLastTransmitTime = (struct timeval *) &seg_msg.data[0];
-    #pragma GCC diagnostic pop
+  // Copy the timestamp of the previously transmitted message into the data
+  // Disable GCC warning about unaligned pointer for this pointer assignment
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+    struct timeval *pLastTransmitTime = (struct timeval *) &seg_msg.data[0];
+  #pragma GCC diagnostic pop
 
-    *pLastTransmitTime = _UdpClient.GetHardwareTimestampOfLastMessage();
+  *pLastTransmitTime = _tvLastMessageTimestamp;
 
-    _UdpClient.SendMessage((uint8_t *) &seg_msg, sizeof(seg_msg));
-    // cout << "Send" << endl;
+  _UdpClient.SendMessage((uint8_t *) &seg_msg, sizeof(seg_msg));
+  // cout << "Send" << endl;
 
-    return 0;
+  return 0;
 }
 
 
@@ -179,6 +207,16 @@ int tClientList::EmitMessagesFromAll()
   return 0;
 }
 
+/***************************************************
+* tClientList::PrintStatsFromAll
+*    
+*/
+
+void tClientList::PrintStatsFromAll()
+{
+  for (auto & Client : _ClientList)  Client.PrintStats();
+}
+
 
 /***************************************************
 * tClientList::~tClientList
@@ -259,8 +297,9 @@ void tClientSenderThread::AddClient(tClient &Client)
 
 int tClientSenderThread::EmitMessagesFromAll()
 {
-  for (auto & pClient : _ClientPointersList) {
+    for (auto & pClient : _ClientPointersList) {
     pClient->SendMessage();
+    pClient->RetrieveLastHardwareTxMessageTimestamp();
   }
 
   return 0;

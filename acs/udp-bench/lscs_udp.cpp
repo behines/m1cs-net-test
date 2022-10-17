@@ -229,6 +229,15 @@ int TraverseArgList(const char *sArgList[])
 
 int main (int argc, const char **argv)
 {
+  sigset_t  sigset;
+  bool      bExit = false;
+
+  // Set up a handler for Ctrl-C
+  /* Set up the mask of signals to temporarily block. */
+  sigemptyset(&sigset);
+  sigaddset(&sigset, SIGINT);
+  sigprocmask(SIG_BLOCK, &sigset, NULL);
+
   if (TraverseArgList(argv) < 0) {
     cerr << "Error: Invalid switch combination supplied, try " << argv[0] << " -help" << endl;
   }
@@ -246,10 +255,18 @@ int main (int argc, const char **argv)
   // Adjust timer to start on next second
   schedTime = chrono::ceil<chrono::seconds>(schedTime);
 
-  while (1) { 
+  while (!bExit) { 
     ClientList.EmitMessagesFromAll();
     schedTime += intervalInMs;
+
+    /* Check if sigint has arrived */
+    sigpending(&sigset);
+    bExit = sigismember(&sigset, SIGINT);
+
     std::this_thread::sleep_until(schedTime);
   }
 
+  cout << endl << "Ctrl-C, exiting..." << endl;
+
+  ClientList.PrintStatsFromAll();
 }

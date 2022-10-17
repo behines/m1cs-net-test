@@ -111,11 +111,15 @@ void tSampleStats::AccumulateSample(const double dLatencyMicroseconds[LM_NUM_MEA
   std::unique_lock lock(_AccumulatorMutex);
 
   for (int i = 0; i<LM_NUM_MEASUREMENTS; i++) {
-  
-    _AccLatency[i](dLatencyMicroseconds[i]/1000);
 
-    if (dLatencyMicroseconds[i] < _dLatencyMin[i]) _dLatencyMin[i] = dLatencyMicroseconds[i];
-    if (dLatencyMicroseconds[i] > _dLatencyMax[i]) _dLatencyMax[i] = dLatencyMicroseconds[i];
+    // If the sample is zero, that means it wasn't present, so skip it
+    if (dLatencyMicroseconds[i] != 0.0) {
+      // It's a good sample, add it to the dataset.
+      _AccLatency[i](dLatencyMicroseconds[i]/1000);
+
+      if (dLatencyMicroseconds[i] < _dLatencyMin[i]) _dLatencyMin[i] = dLatencyMicroseconds[i];
+      if (dLatencyMicroseconds[i] > _dLatencyMax[i]) _dLatencyMax[i] = dLatencyMicroseconds[i];
+    }
   }
 
   _nMismatches += bMismatch;
@@ -478,7 +482,7 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 {
   struct timeval tmDiff, tmRcvKernelLatency, tmSendKernelLatency, tmHwRcvUTC, tmHwSentUTC, tmNetworkLatency;
   double dLatency[LM_NUM_MEASUREMENTS];
-  bool   bMismatch, bDropped;
+  bool   bMismatch, bDropped, bHwSendTimestampExists;
 
   // The first time through, we won't have a valid previous sample, so bail out until next time.
   if (_PreviousSample.IsValid()) {
@@ -487,12 +491,20 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 
     // The hardware timestamps are in TAI instead of UTC.  Convert.
     tmHwRcvUTC  = _SamplePrinter.TAI_to_UTC(_PreviousSample._tmHwRcv_TAI);
-    tmHwSentUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwSentPrevious_TAI);
-
     timersub(&_PreviousSample._tmRcv, &tmHwRcvUTC,              &tmRcvKernelLatency );
-    timersub(&tmHwSentUTC,            &_PreviousSample._tmSent, &tmSendKernelLatency);
-    timersub(&tmHwRcvUTC,             &tmHwSentUTC,             &tmNetworkLatency   );
 
+    // If HW timestamp on sending end is 0, that means we didn't get one.
+    bHwSendTimestampExists = !(Sample._tmHwSentPrevious_TAI.tv_sec == 0);
+    if (bHwSendTimestampExists) {
+      tmHwSentUTC = _SamplePrinter.TAI_to_UTC(Sample._tmHwSentPrevious_TAI);  // Convert h/w stamp from TAI to UTC
+      timersub(&tmHwSentUTC,            &_PreviousSample._tmSent, &tmSendKernelLatency);
+      timersub(&tmHwRcvUTC,             &tmHwSentUTC,             &tmNetworkLatency   );
+    }
+    else {
+      // Mark these latencies as not present.
+      tmSendKernelLatency = {0,0};
+      tmNetworkLatency    = {0,0};
+    }
 
     //PrintSample(_PreviousSample._tmSent, _PreviousSample._tmRcv, tmDiff, 
     //            tmHwRcvUTC, tmRcvKernelLatency, tmHwSentUTC, tmSendKernelLatency,
@@ -508,6 +520,10 @@ void tSampleLogger::ProcessSample(const tLatencySample &Sample)
 
    _Stats.AccumulateSample(dLatency, bMismatch, bDropped);
 
+   // If there is a mismatch, we probably dropped on.  Adjust the numbers to match going forward
+   if (bMismatch) {
+    _PreviousSample._nRcvdByServer = _PreviousSample._nSentByClient;
+   }
   }
   else {
     // First time through, let's get the host IP as a string

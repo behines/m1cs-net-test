@@ -65,7 +65,8 @@ public:
 
 
   void SendMessage(uint8_t *pMessage, int iNumBytes);
-  struct timeval GetHardwareTimestampOfLastMessage() { return _tvTimestampOfLastMessage; }
+  struct timeval RetrieveLastHardwareTxMessageTimestamp();
+  struct timeval HardwareTimestampOfLastMessage() { return _tvTimestampOfLastMessage; }
 
   bool IsInitialized()  { return _bInitSuccessfully; }
 

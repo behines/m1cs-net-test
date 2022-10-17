@@ -216,7 +216,6 @@ tUdpClient::tUdpClient(tUdpClient &&other) noexcept :
 
 void tUdpClient::SendMessage(uint8_t *pMessage, int iNumBytes)
 {
-  ssize_t n;
   int retval;
 
   assert(pMessage != nullptr);
@@ -226,10 +225,13 @@ void tUdpClient::SendMessage(uint8_t *pMessage, int iNumBytes)
   if (retval == -1) {
     throw tUdpConnectionException(std::string("SendMessage: ") + strerror(errno));
   }
+}
 
-  // We want to read back the timestamp info, but we don't need to do that right away.  Let all the
-  // other sender threads run first.
-  pthread_yield();
+
+struct timeval tUdpClient::RetrieveLastHardwareTxMessageTimestamp()
+{
+  ssize_t n;
+  int     iPollResult;
 
   // For sample recvmsg code that retrieves timestamps, see https://github.com/Xilinx-CNS/onload/blob/master/src/tests/onload/hwtimestamping/rx_timestamping.c
   // There is no additional config to do since we aren't actually receiving data, just control messages.
@@ -239,35 +241,37 @@ void tUdpClient::SendMessage(uint8_t *pMessage, int iNumBytes)
   // To block waiting on a timestamp, use poll or select. poll() will set the POLLERR flag if data is ready
   // in the error queue.
 
-  #if 0
-    fd_set errorfs;
-    FD_ZERO(&errorfs);
-    FD_SET(_sockTx, &errorfs);
-    if (select(_sockTx + 1, NULL, NULL, &errorfs, NULL) == -1) {
-      throw tUdpConnectionException(std::string("SendMessage errqueue readback select: ") + strerror(errno));
-    }
-    if (FD_ISSET(_sockTx, &errorfs))	cout << "has error" << endl;
-    else                              cout << "no error" << endl;
-  #endif
-
   // The kernel docs say that you don't need to set POLLERR in the Requested Events flag set.
   // But I was having trouble so decided to try it anyway.
+  // Mark the timestamp as uninitialized.
+  _tvTimestampOfLastMessage = { 0, 0 };
   struct pollfd PollFds[] = { { _sockTx, POLLERR , 0 } };
-  if (poll(PollFds, 1, -1) == -1) {
+  iPollResult = poll(PollFds, 1, 1);
+  if (iPollResult == -1) {
     throw tUdpConnectionException(std::string("SendMessage errqueue poll: ") + strerror(errno));
   }
 
-  n = recvmsg(_sockTx, &_MsgHdr, MSG_ERRQUEUE);
-  if (n < 0) {
-	  throw tUdpConnectionException(std::string("SendMessage errqueue readback: ") + strerror(errno));
+  // A zero result means it timed out.  Read the results if we didn't time out
+  if (iPollResult != 0) {
+    // Read until we get an error.  We should get EAGAIN once the queue is drained
+    // This will cause the error message queue to be fully drained.  In the event that multiple timestamps
+    // are found, we'll take the last one.
+    do {
+      n = recvmsg(_sockTx, &_MsgHdr, MSG_ERRQUEUE);
+      if (n>=0) _SaveHardwareTimestampOfMessage();  // If there is a timestamp in the message, this will grab it
+    } while (n >=0);
+
+    if (n < 0  && errno != EAGAIN) {
+      throw tUdpConnectionException(std::string("SendMessage errqueue readback: ") + to_string(errno) + " : " + strerror(errno));
+    }
   }
 
-  _SaveHardwareTimestampOfMessage();
+  return _tvTimestampOfLastMessage;
 }
 
 
 /*********************************************
-* tUdpClient::GetHardwareTimestampOfLastMessage
+* tUdpClient::_SaveHardwareTimestampOfMessage
 *
 * SIDE EFFECTS:
 *
