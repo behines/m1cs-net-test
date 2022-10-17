@@ -225,6 +225,7 @@ void tUdpClient::SendMessage(uint8_t *pMessage, int iNumBytes)
   if (retval == -1) {
     throw tUdpConnectionException(std::string("SendMessage: ") + strerror(errno));
   }
+  _tvTimestampOfLastMessage = { 0, 0 };
 }
 
 

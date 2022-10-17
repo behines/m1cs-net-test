@@ -299,6 +299,7 @@ int tClientSenderThread::EmitMessagesFromAll()
 {
   for (auto & pClient : _ClientPointersList) {
     pClient->SendMessage();
+    pthread_yield();
     pClient->RetrieveLastHardwareTxMessageTimestamp();
   }
 
