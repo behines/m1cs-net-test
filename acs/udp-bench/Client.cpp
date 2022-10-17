@@ -297,7 +297,7 @@ void tClientSenderThread::AddClient(tClient &Client)
 
 int tClientSenderThread::EmitMessagesFromAll()
 {
-    for (auto & pClient : _ClientPointersList) {
+  for (auto & pClient : _ClientPointersList) {
     pClient->SendMessage();
     pClient->RetrieveLastHardwareTxMessageTimestamp();
   }
