@@ -10,6 +10,6 @@ SUBDIRS= \
 	net \
 	net-bench \
 	net_am64x \
-	udp-bench \
-	udp-bench_am64x 
+	net-bench-udp \
+	net-bench-udp_am64x 
 
