@@ -23,6 +23,28 @@ usage () {
   echo "Usage: $0 [--start | --stop] [--tcp | --udp] [-f hostfile] [-p priority] [-s lscs_server] [-c rtc_client]"
 }
 
+check_clocks () {
+  echo "Checking system clocks"
+#  ssh  -q  root@${SEG_HOST}  "sh -c 'sudo systemctl restart ptp4l'"
+#  ssh  -q  root@${SEG_HOST}  "sh -c 'sudo systemctl restart phc2sys'"
+#  for i in ${SIM_HOSTS}; do
+#    ssh  -q $i  "sh -c 'sudo systemctl restart ptp4l'"
+#    ssh  -q $i  "sh -c 'sudo systemctl restart phc2sys'"
+#  done
+#  sleep 5
+
+  echo -e "\nHost: ${RTC_HOST}"
+  ssh  -q  ${RTC_HOST}  "sh -c 'sudo pmc -u -b 0 \"GET TIME_STATUS_NP\" \"GET CURRENT_DATA_SET\" '"
+
+  echo -e "\nHost: ${SEG_HOST}"
+  ssh  -q  root@${SEG_HOST}  "sh -c 'sudo pmc -u -b 0 \"GET TIME_STATUS_NP\" \"GET CURRENT_DATA_SET\"'"
+
+  for i in ${SIM_HOSTS}; do
+    echo -e "\nHost: ${i}"
+    ssh  -q $i  "sh -c 'sudo pmc -u -b 0 \"GET TIME_STATUS_NP\" \"GET CURRENT_DATA_SET\"'"
+  done
+}
+
 install() {
   echo "Installing binaries on simulators"
   # distribute binaries
@@ -195,6 +217,7 @@ fi
 
 
 if [ "${START}" -eq "1" ] ; then
+  check_clocks
   if [ "${PROTOCOL}" == "TCP" ] ; then
     startup
   else 
