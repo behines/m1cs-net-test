@@ -58,6 +58,15 @@ int main (int argc, char **argv)
 
 	else if (!strcmp (argv[i], "-d"))
 	    debug = true;
+
+	else if (!strcmp (argv[i], "-help")) {
+	    printf ("Usage: lscs_tstsrv [-d] [-s server]\n");
+	    exit (1);
+	}
+	else {
+	    printf ("Usage: lscs_tstsrv [-d] [-s server]\n");
+	    exit (1);
+	}
     }
 
     for (i = 0; i < MAXCLIENTS; i++)
@@ -98,6 +107,7 @@ void event_loop ()
     fd_set read_fds;       /* file descriptors to be polled */
     int  nfds;
     int  sockfd, i;
+    struct timeval tm1, tm2, tm_start;
     struct timeval tm_50hz = {0, 20*1000};	// {0s, 20ms}
 
     while (1) {
@@ -142,7 +152,11 @@ void event_loop ()
 		    cli_fd[n] = sockfd;
 		    if (debug) fprintf (stderr, "tm_50hz.(tv_sec, tv_usec) = (%ld, %ld)\n",
 							    tm_50hz.tv_sec, tm_50hz.tv_usec);
-		    if (tmfd != ERROR) setTimer (tmfd, &tm_50hz, &tm_50hz);
+		    gettimeofday (&tm1, NULL);
+		    tm2 = (struct timeval){tm1.tv_sec+1, 0};
+		    timersub(&tm2, &tm1, &tm_start);
+
+		    if (tmfd != ERROR) setTimer (tmfd, &tm_start, &tm_50hz);
 		}
 		else {
 		    (void)fprintf (stderr, "lscs_tstsrv: Max client connections exceeded.\n");
