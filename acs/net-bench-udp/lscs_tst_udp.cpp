@@ -158,9 +158,9 @@ int TraverseArgList(const char *sArgList[])
 
   while (sArg != NULL) {
     if (!strcmp(sArg, "-help")) {
-      cout << "Usage: " << sProgramName << " [-d] [-f client_ip_list_filename] [-h host_ip] [-p first_server_port] [-c client_ip] [-n num_clients] " << endl;
+      cout << "Usage: " << sProgramName << " [-d] [-f client_ip_list_filename] [-h host_ip] [-p first_server_port] [-n num_clients] " << endl;
       cout << "  You must either provide either -f or -h, not both" << endl;
-      cout << "  The -p/-n are optional.  If you do not provide them, defaults will be used." << endl;
+      cout << "  The -p is optional.  If you do not provide it, defaults will be used." << endl;
       cout << "  If you provide -f, you can include port numbers in the file, or use the -p argument" << endl;
       cout << "  * -f should provide the filename of a list of IP addresses to masquerade as, with optional server target ports" << endl;
       cout << "  * -p first_server_port numports" << endl;
@@ -181,11 +181,6 @@ int TraverseArgList(const char *sArgList[])
       b_hFlagIsPresent = true;
     }
 
-    else if (!strcmp(sArg, "-c"))  {
-      sClientIpAddressString = *sArgList++;
-      b_cFlagIsPresent = true;
-    }
-
     else if (!strcmp(sArg, "-t"))  {
       iSenderThreadPriority = atoi(*sArgList++);
     } 
@@ -196,14 +191,6 @@ int TraverseArgList(const char *sArgList[])
         throw std::runtime_error("Invalid value for -p argument");
       }
       b_pFlagIsPresent = true;
-    }
-
-    else if (!strcmp(sArg, "-n"))  {
-      iNumClients   = atoi(*sArgList++);
-      if (iNumClients < 1) {
-        throw std::runtime_error("Invalid value for -p argument");
-      }
-      b_nFlagIsPresent = true;
     }
 
     else if (!strcmp(sArg, "-d")) {
