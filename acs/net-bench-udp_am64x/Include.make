@@ -8,7 +8,7 @@
 #
 
 #TARGET options am335x am64x msp432 c2000 
-TARGET= 
+TARGET=am64x
 -include $(ROOTDIR)/Include.tools
 
 # DEFINES: list of preprocessor flags to set when compiling source
@@ -27,10 +27,10 @@ LLIBS =
 LDLIBS = -lpthread -lrt  --sysroot=$(SYSROOT)
 
 # EXES: name of executable(s) to be created.
-EXES = rtc_udp lscs_udp 
+EXES = lscs_tstsrv_udp 
 
 # SRCS: list of source files to be compiled/linked with EXE.o 
-SRCS = PThread.cpp UdpConnection.cpp Server.cpp Client.cpp IpInterfaceInfo.cpp
+SRCS = PThread.cpp UdpConnection.cpp Client.cpp IpInterfaceInfo.cpp
 
 #rtc_udp.cpp UdpConnection.cpp Server.cpp Client.cpp PThread.cpp lscs_udp.cpp
 # LIB: Name of library to be created.

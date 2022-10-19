@@ -16,7 +16,7 @@ extern "C" {
 #include "GlcMsg.h"
 }
 
-#include "rtc_udp.h"
+#include "rtc_tstcli_udp.h"
 #include "Server.h"
 #include <list>
 #include <iostream>
